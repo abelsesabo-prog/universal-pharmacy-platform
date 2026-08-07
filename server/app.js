@@ -1,12 +1,13 @@
-const express = require("express");
-const config = require("./config/config");
-const { connectMongoDB } = require("./database/mongo");
-const routes = require("./routes");
+import express from "express";
+import config from "./config/config.js";
+import { connectMongoDB } from "./database/mongo.js";
+import routes from "./routes/index.js";
+
 const app = express();
 
 app.use(express.json());
-app.use("/api", routes);
 
+app.use("/api", routes);
 
 async function startServer() {
     try {
@@ -25,4 +26,4 @@ async function startServer() {
 
 startServer();
 
-module.exports = app;
+export default app;
