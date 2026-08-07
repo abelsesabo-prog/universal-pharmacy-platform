@@ -7,14 +7,6 @@ const app = express();
 app.use(express.json());
 app.use("/api", routes);
 
-app.get("/api/health", async (req, res) => {
-    res.json({
-        success: true,
-        application: config.app.name,
-        environment: config.app.environment,
-        database: "connected"
-    });
-});
 
 async function startServer() {
     try {
