@@ -1,1 +1,22 @@
-
+{
+  "name": "universal-pharmacy-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Universal Pharmacy Management Platform",
+  "type": "module",
+  "scripts": {
+    "dev": "node server/app.js",
+    "start": "node server/app.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "mongodb": "^6.19.0"
+  },
+  "devDependencies": {}
+}
