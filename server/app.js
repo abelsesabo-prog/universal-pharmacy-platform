@@ -1,35 +1,35 @@
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
-
-dotenv.config();
+const express = require("express");
+const config = require("./config/config");
+const { connectMongoDB } = require("./database/mongo");
 
 const app = express();
 
-const PORT = process.env.PORT || 10000;
-
-// Middleware
-app.use(cors());
 app.use(express.json());
 
-// Health check
-app.get("/api/health", (req, res) => {
+app.get("/api/health", async (req, res) => {
     res.json({
         success: true,
-        service: "Universal Pharmacy Platform",
-        status: "online"
+        application: config.app.name,
+        environment: config.app.environment,
+        database: "connected"
     });
 });
 
-// Root endpoint
-app.get("/", (req, res) => {
-    res.json({
-        name: "Universal Pharmacy Platform",
-        status: "online"
-    });
-});
+async function startServer() {
+    try {
+        await connectMongoDB();
 
-// Start server
-app.listen(PORT, () => {
-    console.log(`Universal Pharmacy Platform running on port ${PORT}`);
-});
+        app.listen(config.app.port, () => {
+            console.log(
+                `${config.app.name} running on port ${config.app.port}`
+            );
+        });
+    } catch (error) {
+        console.error("Server startup failed:", error.message);
+        process.exit(1);
+    }
+}
+
+startServer();
+
+module.exports = app;
