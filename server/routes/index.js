@@ -1,12 +1,8 @@
 import express from "express";
+import { healthCheck } from "../controllers/healthController.js";
 
 const router = express.Router();
 
-router.get("/health", (req, res) => {
-    res.json({
-        success: true,
-        message: "Universal Pharmacy Platform API is running."
-    });
-});
+router.get("/health", healthCheck);
 
 export default router;
