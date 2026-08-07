@@ -1,7 +1,7 @@
 const express = require("express");
 const config = require("./config/config");
 const { connectMongoDB } = require("./database/mongo");
-
+const routes = require("./routes");
 const app = express();
 
 app.use(express.json());
