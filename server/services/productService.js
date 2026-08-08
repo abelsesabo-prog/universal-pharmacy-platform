@@ -3,7 +3,7 @@
 // Product Service
 // ==========================================
 
-import { COLLECTIONS, PRODUCT_SCHEMA } from "../../shared/schemas/index.js";
+import { COLLECTIONS } from "../../shared/schemas/index.js";
 import {
     requireFields,
     validateProduct
