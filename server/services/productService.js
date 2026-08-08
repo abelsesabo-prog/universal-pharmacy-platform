@@ -4,10 +4,7 @@
 // ==========================================
 
 import { COLLECTIONS } from "../../shared/schemas/index.js";
-import {
-    requireFields,
-    validateProduct
-} from "../../shared/validators/index.js";
+import { validateProduct } from "../../shared/validators/index.js";
 import { getCollection } from "./index.js";
 
 function normalizeProduct(data) {
