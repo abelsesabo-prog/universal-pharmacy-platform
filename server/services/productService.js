@@ -2,7 +2,7 @@
 // Universal Pharmacy Platform
 // Product Service
 // ==========================================
-
+import { ObjectId } from "mongodb";
 import { COLLECTIONS } from "../../shared/schemas/index.js";
 import { validateProduct } from "../../shared/validators/index.js";
 import { getCollection } from "./index.js";
@@ -67,8 +67,14 @@ export async function createProduct(data) {
 export async function getProductById(productId) {
     const products = getCollection(COLLECTIONS.PRODUCTS);
 
+    if (!ObjectId.isValid(productId)) {
+        const error = new Error("Invalid product ID.");
+        error.statusCode = 400;
+        throw error;
+    }
+
     return products.findOne({
-        _id: productId
+        _id: new ObjectId(productId)
     });
 }
 
