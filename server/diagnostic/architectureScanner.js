@@ -64,15 +64,21 @@ function extractImports(source) {
     const imports = [];
 
     const importRegex =
-        /import\s+(?:[\s\S]*?\s+from\s+)?["']([^"']+)["']/g;
+        /import\s+(?:([\s\S]*?)\s+from\s+)?["']([^"']+)["']/g;
 
     let match;
 
     while ((match = importRegex.exec(source)) !== null) {
-        imports.push(match[1]);
+        const clause = match[1]?.trim() || null;
+        const modulePath = match[2];
+
+        imports.push({
+            module: modulePath,
+            clause
+        });
     }
 
-    return [...new Set(imports)];
+    return imports;
 }
 
 function extractExports(source) {
@@ -82,7 +88,7 @@ function extractExports(source) {
         /export\s+(?:async\s+)?(?:function|const|let|var|class)\s+([A-Za-z_$][\w$]*)/g;
 
     const defaultExportRegex =
-        /export\s+default\s+(?:function|class)?\s*([A-Za-z_$][\w$]*)?/g;
+    /\bexport\s+default\b/g;
 
     const exportBlockRegex =
         /export\s*\{([\s\S]*?)\}/g;
@@ -94,8 +100,8 @@ function extractExports(source) {
     }
 
     while ((match = defaultExportRegex.exec(source)) !== null) {
-        exports.push(match[1] || "default");
-    }
+    exports.push("default");
+}
 
     while ((match = exportBlockRegex.exec(source)) !== null) {
         const names = match[1]
@@ -222,6 +228,70 @@ function resolveLocalImport(sourceFile, importPath) {
     };
 }
 
+function parseImportedNames(clause) {
+    if (!clause) {
+        return [];
+    }
+
+    const names = [];
+
+    const cleaned = clause
+        .replace(/\s+/g, " ")
+        .trim();
+
+    if (cleaned.startsWith("*")) {
+        return ["*"];
+    }
+
+    const braceMatch = cleaned.match(/\{([^}]*)\}/);
+
+    if (braceMatch) {
+        const namedImports = braceMatch[1]
+            .split(",")
+            .map(item => {
+                return item
+                    .trim()
+                    .split(/\s+as\s+/i)[0]
+                    .trim();
+            })
+            .filter(Boolean);
+
+        names.push(...namedImports);
+    }
+
+    const defaultPart = cleaned
+        .split(",")[0]
+        .trim();
+
+    if (
+        defaultPart &&
+        !defaultPart.startsWith("{") &&
+        !defaultPart.startsWith("*")
+    ) {
+        names.push("default");
+    }
+
+    return [...new Set(names)];
+}
+
+function createModuleMap(modules) {
+    const map = new Map();
+
+    for (const module of modules) {
+        const absolutePath = path.resolve(
+            PROJECT_ROOT,
+            module.path
+        );
+
+        map.set(
+            path.normalize(absolutePath),
+            module
+        );
+    }
+
+    return map;
+}
+
 export function scanProjectStructure() {
     return {
         projectRoot: PROJECT_ROOT,
@@ -231,10 +301,12 @@ export function scanProjectStructure() {
 }
 
 export function analyzeProjectModules() {
+    const modules = analyzeDirectory(PROJECT_ROOT);
+
     return {
         projectRoot: PROJECT_ROOT,
         generatedAt: new Date().toISOString(),
-        files: analyzeDirectory(PROJECT_ROOT)
+        files: modules
     };
 }
 
@@ -249,15 +321,16 @@ export function analyzeProjectDependencies() {
             module.path
         );
 
-        for (const importPath of module.imports) {
+        for (const importInfo of module.imports) {
             const resolution = resolveLocalImport(
                 sourceFile,
-                importPath
+                importInfo.module
             );
 
             dependencies.push({
                 source: module.path,
-                import: importPath,
+                import: importInfo.module,
+                clause: importInfo.clause,
                 type: resolution.type,
                 resolved: resolution.resolved,
                 target: resolution.target
@@ -269,5 +342,199 @@ export function analyzeProjectDependencies() {
         projectRoot: PROJECT_ROOT,
         generatedAt: new Date().toISOString(),
         dependencies
+    };
+}
+
+export function analyzeImportExportCompatibility() {
+    const modules = analyzeDirectory(PROJECT_ROOT);
+    const moduleMap = createModuleMap(modules);
+
+    const findings = [];
+
+    for (const module of modules) {
+        const sourceFile = path.resolve(
+            PROJECT_ROOT,
+            module.path
+        );
+
+        for (const importInfo of module.imports) {
+            if (!importInfo.module.startsWith(".")) {
+                continue;
+            }
+
+            const resolution = resolveLocalImport(
+                sourceFile,
+                importInfo.module
+            );
+
+            if (!resolution.resolved) {
+                findings.push({
+                    severity: "error",
+                    type: "missing-local-module",
+                    source: module.path,
+                    import: importInfo.module,
+                    message:
+                        "Local import target could not be resolved."
+                });
+
+                continue;
+            }
+
+            const targetAbsolutePath = path.normalize(
+                path.resolve(
+                    PROJECT_ROOT,
+                    resolution.target
+                )
+            );
+
+            const targetModule =
+                moduleMap.get(targetAbsolutePath);
+
+            if (!targetModule) {
+                findings.push({
+                    severity: "error",
+                    type: "unindexed-module",
+                    source: module.path,
+                    import: importInfo.module,
+                    target: resolution.target,
+                    message:
+                        "Resolved module was not found in the analyzer module index."
+                });
+
+                continue;
+            }
+
+            const importedNames =
+                parseImportedNames(importInfo.clause);
+
+            if (importedNames.length === 0) {
+                findings.push({
+                    severity: "info",
+                    type: "module-import",
+                    source: module.path,
+                    import: importInfo.module,
+                    target: resolution.target,
+                    status: "compatible",
+                    message:
+                        "Module import detected; no named import compatibility check required."
+                });
+
+                continue;
+            }
+
+            for (const importedName of importedNames) {
+                if (importedName === "*") {
+                    findings.push({
+                        severity: "info",
+                        type: "namespace-import",
+                        source: module.path,
+                        import: importInfo.module,
+                        target: resolution.target,
+                        status: "compatible",
+                        message:
+                            "Namespace import detected."
+                    });
+
+                    continue;
+                }
+
+                const compatible =
+                    targetModule.exports.includes(
+                        importedName
+                    );
+
+                findings.push({
+                    severity: compatible
+                        ? "info"
+                        : "error",
+                    type: "named-import-export-check",
+                    source: module.path,
+                    import: importedName,
+                    target: resolution.target,
+                    exportedNames:
+                        targetModule.exports,
+                    status: compatible
+                        ? "compatible"
+                        : "mismatch",
+                    message: compatible
+                        ? "Imported name is exported by the target module."
+                        : "Imported name is not exported by the target module."
+                });
+            }
+        }
+    }
+
+    return {
+        projectRoot: PROJECT_ROOT,
+        generatedAt: new Date().toISOString(),
+        findings
+    };
+}
+
+export function analyzeUnresolvedImports() {
+    const projectRoot = path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        "../.."
+    );
+
+    const moduleAnalysis = analyzeProjectModules();
+
+    const findings = [];
+
+    for (const file of moduleAnalysis.files) {
+        for (const imported of file.imports) {
+            const importPath = imported.module;
+
+            // Only inspect local relative imports.
+            if (!importPath || !importPath.startsWith(".")) {
+                continue;
+            }
+
+            const sourceDirectory = path.dirname(
+                path.join(projectRoot, file.path)
+            );
+
+            const resolvedPath = path.resolve(
+                sourceDirectory,
+                importPath
+            );
+
+            const candidates = [
+                resolvedPath,
+                `${resolvedPath}.js`,
+                `${resolvedPath}.json`,
+                path.join(resolvedPath, "index.js")
+            ];
+
+            const exists = candidates.some(candidate =>
+                fs.existsSync(candidate)
+            );
+
+            if (!exists) {
+                findings.push({
+                    severity: "error",
+                    type: "unresolved-local-import",
+                    source: file.path,
+                    import: importPath,
+                    status: "missing",
+                    message: "Local import does not resolve to an existing file."
+                });
+            } else {
+                findings.push({
+                    severity: "info",
+                    type: "unresolved-local-import",
+                    source: file.path,
+                    import: importPath,
+                    status: "resolved",
+                    message: "Local import resolves successfully."
+                });
+            }
+        }
+    }
+
+    return {
+        projectRoot,
+        generatedAt: new Date().toISOString(),
+        findings
     };
 }
