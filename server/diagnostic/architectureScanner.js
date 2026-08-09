@@ -84,6 +84,9 @@ function extractExports(source) {
     const defaultExportRegex =
         /export\s+default\s+(?:function|class)?\s*([A-Za-z_$][\w$]*)?/g;
 
+    const exportBlockRegex =
+        /export\s*\{([\s\S]*?)\}/g;
+
     let match;
 
     while ((match = namedExportRegex.exec(source)) !== null) {
@@ -94,8 +97,19 @@ function extractExports(source) {
         exports.push(match[1] || "default");
     }
 
-    if (/export\s*\{[\s\S]*?\}/.test(source)) {
-        exports.push("named-export-block");
+    while ((match = exportBlockRegex.exec(source)) !== null) {
+        const names = match[1]
+            .split(",")
+            .map(item => {
+                const cleaned = item
+                    .trim()
+                    .replace(/\s+as\s+.*/i, "");
+
+                return cleaned;
+            })
+            .filter(Boolean);
+
+        exports.push(...names);
     }
 
     return [...new Set(exports)];
@@ -154,6 +168,60 @@ function analyzeDirectory(directory, relativePath = "") {
     return files;
 }
 
+function getJavaScriptCandidates(importPath) {
+    return [
+        importPath,
+        `${importPath}.js`,
+        path.join(importPath, "index.js")
+    ];
+}
+
+function resolveLocalImport(sourceFile, importPath) {
+    if (!importPath.startsWith(".")) {
+        return {
+            type: "external",
+            importPath,
+            resolved: true,
+            target: importPath
+        };
+    }
+
+    const sourceDirectory = path.dirname(sourceFile);
+
+    const absoluteBase = path.resolve(
+        sourceDirectory,
+        importPath
+    );
+
+    const candidates = getJavaScriptCandidates(
+        absoluteBase
+    );
+
+    for (const candidate of candidates) {
+        if (
+            fs.existsSync(candidate) &&
+            fs.statSync(candidate).isFile()
+        ) {
+            return {
+                type: "local",
+                importPath,
+                resolved: true,
+                target: path.relative(
+                    PROJECT_ROOT,
+                    candidate
+                )
+            };
+        }
+    }
+
+    return {
+        type: "local",
+        importPath,
+        resolved: false,
+        target: null
+    };
+}
+
 export function scanProjectStructure() {
     return {
         projectRoot: PROJECT_ROOT,
@@ -167,5 +235,39 @@ export function analyzeProjectModules() {
         projectRoot: PROJECT_ROOT,
         generatedAt: new Date().toISOString(),
         files: analyzeDirectory(PROJECT_ROOT)
+    };
+}
+
+export function analyzeProjectDependencies() {
+    const modules = analyzeDirectory(PROJECT_ROOT);
+
+    const dependencies = [];
+
+    for (const module of modules) {
+        const sourceFile = path.resolve(
+            PROJECT_ROOT,
+            module.path
+        );
+
+        for (const importPath of module.imports) {
+            const resolution = resolveLocalImport(
+                sourceFile,
+                importPath
+            );
+
+            dependencies.push({
+                source: module.path,
+                import: importPath,
+                type: resolution.type,
+                resolved: resolution.resolved,
+                target: resolution.target
+            });
+        }
+    }
+
+    return {
+        projectRoot: PROJECT_ROOT,
+        generatedAt: new Date().toISOString(),
+        dependencies
     };
 }
