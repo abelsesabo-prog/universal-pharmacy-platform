@@ -640,3 +640,219 @@ export function analyzeOrphanedModules() {
         findings
     };
 }
+
+export function analyzeLayerRelationships() {
+    const projectRoot = path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        "../.."
+    );
+
+    const moduleAnalysis = analyzeProjectModules();
+
+    const findings = [];
+
+    const normalize = value =>
+        path.normalize(value).replace(/\\/g, "/");
+
+    const resolveLocalImport = (sourcePath, importPath) => {
+        if (!importPath || !importPath.startsWith(".")) {
+            return null;
+        }
+
+        const sourceDirectory = path.dirname(
+            path.join(projectRoot, sourcePath)
+        );
+
+        const resolvedPath = path.resolve(
+            sourceDirectory,
+            importPath
+        );
+
+        const candidates = [
+            resolvedPath,
+            `${resolvedPath}.js`,
+            `${resolvedPath}.json`,
+            path.join(resolvedPath, "index.js")
+        ];
+
+        const matched = candidates.find(candidate =>
+            fs.existsSync(candidate)
+        );
+
+        if (!matched) {
+            return null;
+        }
+
+        return normalize(
+            path.relative(projectRoot, matched)
+        );
+    };
+
+    const findModule = modulePath =>
+        moduleAnalysis.files.find(
+            file =>
+                normalize(file.path) === normalize(modulePath)
+        );
+
+    for (const file of moduleAnalysis.files) {
+        const sourcePath = normalize(file.path);
+
+        /*
+         * Routes must normally connect to controllers.
+         */
+        if (sourcePath.includes("/routes/")) {
+            const controllerImports = file.imports
+                .filter(imported =>
+                    imported.module &&
+                    imported.module.startsWith(".")
+                )
+                .map(imported => ({
+                    imported,
+                    target: resolveLocalImport(
+                        file.path,
+                        imported.module
+                    )
+                }))
+                .filter(item =>
+                    item.target &&
+                    item.target.includes("/controllers/")
+                );
+
+            if (controllerImports.length === 0) {
+                findings.push({
+                    severity: "warning",
+                    type: "layer-relationship",
+                    source: file.path,
+                    expected: "controller",
+                    status: "missing",
+                    message:
+                        "Route module does not import an expected controller module."
+                });
+
+                continue;
+            }
+
+            for (const match of controllerImports) {
+                const targetModule = findModule(match.target);
+
+                if (!targetModule) {
+                    findings.push({
+                        severity: "error",
+                        type: "layer-relationship",
+                        source: file.path,
+                        target: match.target,
+                        expected: "controller",
+                        status: "unresolved",
+                        message:
+                            "Expected controller could not be analyzed."
+                    });
+
+                    continue;
+                }
+
+                findings.push({
+                    severity: "info",
+                    type: "layer-relationship",
+                    source: file.path,
+                    target: match.target,
+                    expected: "controller",
+                    status: "compatible",
+                    message:
+                        "Route correctly connects to the expected controller layer."
+                });
+            }
+
+            continue;
+        }
+
+        /*
+         * Health/infrastructure controllers are allowed to communicate
+         * directly with infrastructure such as the database.
+         */
+        if (sourcePath.endsWith("/controllers/healthController.js")) {
+            findings.push({
+                severity: "info",
+                type: "layer-relationship",
+                source: file.path,
+                expected: "infrastructure-controller",
+                status: "allowed",
+                message:
+                    "Health controller is classified as an infrastructure controller; direct infrastructure access is allowed."
+            });
+
+            continue;
+        }
+
+        /*
+         * Business controllers must normally connect to services.
+         */
+        if (sourcePath.includes("/controllers/")) {
+            const serviceImports = file.imports
+                .filter(imported =>
+                    imported.module &&
+                    imported.module.startsWith(".")
+                )
+                .map(imported => ({
+                    imported,
+                    target: resolveLocalImport(
+                        file.path,
+                        imported.module
+                    )
+                }))
+                .filter(item =>
+                    item.target &&
+                    item.target.includes("/services/")
+                );
+
+            if (serviceImports.length === 0) {
+                findings.push({
+                    severity: "warning",
+                    type: "layer-relationship",
+                    source: file.path,
+                    expected: "service",
+                    status: "missing",
+                    message:
+                        "Business controller does not import an expected service module."
+                });
+
+                continue;
+            }
+
+            for (const match of serviceImports) {
+                const targetModule = findModule(match.target);
+
+                if (!targetModule) {
+                    findings.push({
+                        severity: "error",
+                        type: "layer-relationship",
+                        source: file.path,
+                        target: match.target,
+                        expected: "service",
+                        status: "unresolved",
+                        message:
+                            "Expected service could not be analyzed."
+                    });
+
+                    continue;
+                }
+
+                findings.push({
+                    severity: "info",
+                    type: "layer-relationship",
+                    source: file.path,
+                    target: match.target,
+                    expected: "service",
+                    status: "compatible",
+                    message:
+                        "Controller correctly connects to the expected service layer."
+                });
+            }
+        }
+    }
+
+    return {
+        projectRoot,
+        generatedAt: new Date().toISOString(),
+        findings
+    };
+}
