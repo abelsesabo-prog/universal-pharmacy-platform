@@ -856,3 +856,155 @@ export function analyzeLayerRelationships() {
         findings
     };
 }
+
+export function analyzeDependencyCycles() {
+    const projectRoot = path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        "../.."
+    );
+
+    const moduleAnalysis = analyzeProjectModules();
+    const findings = [];
+
+    const normalize = value =>
+        path.normalize(value).replace(/\\/g, "/");
+
+    const resolveLocalImport = (sourcePath, importPath) => {
+        if (!importPath || !importPath.startsWith(".")) {
+            return null;
+        }
+
+        const sourceDirectory = path.dirname(
+            path.join(projectRoot, sourcePath)
+        );
+
+        const resolvedPath = path.resolve(
+            sourceDirectory,
+            importPath
+        );
+
+        const candidates = [
+            resolvedPath,
+            `${resolvedPath}.js`,
+            path.join(resolvedPath, "index.js")
+        ];
+
+        const matched = candidates.find(candidate =>
+            fs.existsSync(candidate)
+        );
+
+        if (!matched) {
+            return null;
+        }
+
+        return normalize(
+            path.relative(projectRoot, matched)
+        );
+    };
+
+    const graph = new Map();
+
+    for (const file of moduleAnalysis.files) {
+        const source = normalize(file.path);
+
+        if (!graph.has(source)) {
+            graph.set(source, []);
+        }
+
+        for (const imported of file.imports) {
+            const target = resolveLocalImport(
+                file.path,
+                imported.module
+            );
+
+            if (target) {
+                graph.get(source).push(target);
+            }
+        }
+    }
+
+    const cycles = [];
+    const reportedCycles = new Set();
+
+    function canonicalizeCycle(cycle) {
+        const nodes = cycle.slice(0, -1);
+
+        const rotations = nodes.map((_, index) => {
+            const rotated = [
+                ...nodes.slice(index),
+                ...nodes.slice(0, index)
+            ];
+
+            return rotated.join(" -> ");
+        });
+
+        return rotations.sort()[0];
+    }
+
+    function dfs(node, pathStack, visiting) {
+        if (visiting.has(node)) {
+            const cycleStart = pathStack.indexOf(node);
+
+            if (cycleStart !== -1) {
+                const cycle = [
+                    ...pathStack.slice(cycleStart),
+                    node
+                ];
+
+                const key = canonicalizeCycle(cycle);
+
+                if (!reportedCycles.has(key)) {
+                    reportedCycles.add(key);
+                    cycles.push(cycle);
+                }
+            }
+
+            return;
+        }
+
+        visiting.add(node);
+        pathStack.push(node);
+
+        for (const dependency of graph.get(node) || []) {
+            dfs(
+                dependency,
+                pathStack,
+                visiting
+            );
+        }
+
+        pathStack.pop();
+        visiting.delete(node);
+    }
+
+    for (const node of graph.keys()) {
+        dfs(node, [], new Set());
+    }
+
+    if (cycles.length === 0) {
+        findings.push({
+            severity: "info",
+            type: "dependency-cycle",
+            status: "none-detected",
+            message:
+                "No local module dependency cycles were detected."
+        });
+    } else {
+        for (const cycle of cycles) {
+            findings.push({
+                severity: "warning",
+                type: "dependency-cycle",
+                status: "cycle-detected",
+                cycle,
+                message:
+                    "A circular dependency exists between local project modules."
+            });
+        }
+    }
+
+    return {
+        projectRoot,
+        generatedAt: new Date().toISOString(),
+        findings
+    };
+}
