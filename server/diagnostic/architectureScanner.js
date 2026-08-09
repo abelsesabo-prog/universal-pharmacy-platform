@@ -538,3 +538,105 @@ export function analyzeUnresolvedImports() {
         findings
     };
 }
+
+export function analyzeOrphanedModules() {
+    const projectRoot = path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        "../.."
+    );
+
+    const moduleAnalysis = analyzeProjectModules();
+
+    const files = moduleAnalysis.files
+        .map(file => file.path)
+        .filter(filePath => filePath.endsWith(".js"));
+
+    const importedFiles = new Set();
+
+    for (const file of moduleAnalysis.files) {
+        for (const imported of file.imports) {
+            const importPath = imported.module;
+
+            if (!importPath || !importPath.startsWith(".")) {
+                continue;
+            }
+
+            const sourceDirectory = path.dirname(
+                path.join(projectRoot, file.path)
+            );
+
+            const resolvedPath = path.resolve(
+                sourceDirectory,
+                importPath
+            );
+
+            const candidates = [
+                resolvedPath,
+                `${resolvedPath}.js`,
+                `${resolvedPath}.json`,
+                path.join(resolvedPath, "index.js")
+            ];
+
+            const matchedCandidate = candidates.find(candidate =>
+                fs.existsSync(candidate)
+            );
+
+            if (matchedCandidate) {
+                const relativeTarget = path.normalize(
+                    path.relative(projectRoot, matchedCandidate)
+                );
+
+                importedFiles.add(relativeTarget);
+            }
+        }
+    }
+
+    const findings = [];
+
+    const allowedEntryPoints = [
+        path.normalize("server/app.js"),
+        path.normalize("server/diagnostic/architectureScanner.js")
+    ];
+
+    const intentionalStandaloneModules = [
+        path.normalize("server/config/env.js")
+    ];
+
+    for (const filePath of files) {
+        const normalizedPath = path.normalize(filePath);
+
+        if (allowedEntryPoints.includes(normalizedPath)) {
+            continue;
+        }
+
+        if (intentionalStandaloneModules.includes(normalizedPath)) {
+            findings.push({
+                severity: "info",
+                type: "standalone-module",
+                source: filePath,
+                status: "not-imported",
+                message:
+                    "Module is not imported by another module and is classified as an intentional standalone configuration file."
+            });
+
+            continue;
+        }
+
+        if (!importedFiles.has(normalizedPath)) {
+            findings.push({
+                severity: "warning",
+                type: "orphaned-module",
+                source: filePath,
+                status: "not-imported",
+                message:
+                    "JavaScript module is not imported by another project module and should be reviewed for duplication, legacy code, or missing integration."
+            });
+        }
+    }
+
+    return {
+        projectRoot,
+        generatedAt: new Date().toISOString(),
+        findings
+    };
+}
