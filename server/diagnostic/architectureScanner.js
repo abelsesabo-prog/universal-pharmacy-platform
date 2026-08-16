@@ -1008,3 +1008,461 @@ export function analyzeDependencyCycles() {
         findings
     };
 }
+
+
+export function analyzeUnusedExports() {
+    const projectRoot = path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        "../.."
+    );
+
+    const moduleAnalysis = analyzeProjectModules();
+    const findings = [];
+
+    const normalize = value =>
+        path.normalize(value).replace(/\\/g, "/");
+
+    const importedSymbols = new Set();
+
+    for (const file of moduleAnalysis.files) {
+        for (const imported of file.imports || []) {
+            if (!imported || typeof imported !== "object") {
+                continue;
+            }
+
+            const clause = imported.clause || "";
+
+            /*
+             * Named imports:
+             * import { foo, bar as baz } from "./module.js"
+             */
+            const namedMatches = clause.match(
+                /\{([^}]+)\}/
+            );
+
+            if (namedMatches) {
+                for (const name of namedMatches[1].split(",")) {
+                    const cleaned = name
+                        .trim()
+                        .split(/\s+as\s+/)[0]
+                        .trim();
+
+                    if (cleaned) {
+                        importedSymbols.add(cleaned);
+                    }
+                }
+            }
+
+            /*
+             * Default imports:
+             * import config from "./config.js"
+             */
+            const defaultMatch = clause.match(
+                /^([A-Za-z_$][\w$]*)$/
+            );
+
+            if (
+                defaultMatch &&
+                !clause.startsWith("{") &&
+                !clause.startsWith("*")
+            ) {
+                importedSymbols.add("default");
+            }
+        }
+    }
+
+    /*
+     * The diagnostic scanner is itself a public diagnostic API.
+     * Its exported analysis functions are intentionally invoked
+     * externally through Node's dynamic import mechanism.
+     */
+    const isDiagnosticModule =
+        normalize("server/diagnostic/architectureScanner.js") ===
+        normalize(path.relative(
+            projectRoot,
+            fileURLToPath(import.meta.url)
+        ));
+
+    const diagnosticExports = new Set([
+        "scanProjectStructure",
+        "analyzeProjectModules",
+        "analyzeProjectDependencies",
+        "analyzeImportExportCompatibility",
+        "analyzeUnresolvedImports",
+        "analyzeOrphanedModules",
+        "analyzeLayerRelationships",
+        "analyzeDependencyCycles",
+        "analyzeUnusedExports"
+    ]);
+
+    for (const file of moduleAnalysis.files) {
+        const source = normalize(file.path);
+
+        for (const exported of file.exports || []) {
+            /*
+             * Default exports are reviewed separately because they
+             * can be consumed by the application's entry graph.
+             */
+            if (exported === "default") {
+                findings.push({
+                    severity: "info",
+                    type: "export-usage",
+                    source: file.path,
+                    export: exported,
+                    status: "reviewed",
+                    message:
+                        "Default export detected; usage is reviewed separately from named exports."
+                });
+
+                continue;
+            }
+
+            /*
+             * Diagnostic functions are intentionally public API.
+             * They are executed through external Node imports rather
+             * than imported by application modules.
+             */
+            if (
+                isDiagnosticModule &&
+                diagnosticExports.has(exported)
+            ) {
+                findings.push({
+                    severity: "info",
+                    type: "export-usage",
+                    source: file.path,
+                    export: exported,
+                    status: "intentional-public-api",
+                    message:
+                        "Diagnostic analyzer export is intentionally exposed for external execution."
+                });
+
+                continue;
+            }
+
+            if (importedSymbols.has(exported)) {
+                findings.push({
+                    severity: "info",
+                    type: "export-usage",
+                    source: file.path,
+                    export: exported,
+                    status: "used",
+                    message:
+                        "Exported symbol is imported by another project module."
+                });
+            } else {
+                findings.push({
+                    severity: "warning",
+                    type: "unused-export",
+                    source: file.path,
+                    export: exported,
+                    status: "not-imported",
+                    message:
+                        "Exported symbol is not imported by another project module and should be reviewed for dead code or intentionally public API."
+                });
+            }
+        }
+    }
+
+    return {
+        projectRoot,
+        generatedAt: new Date().toISOString(),
+        findings
+    };
+}
+
+export function analyzeModuleReachability() {
+    const projectRoot = path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        "../.."
+    );
+
+    const moduleAnalysis = analyzeProjectModules();
+    const findings = [];
+
+    const normalize = value =>
+        path.normalize(value).replace(/\\/g, "/");
+
+    const resolveLocalImport = (sourcePath, importPath) => {
+        if (!importPath || !importPath.startsWith(".")) {
+            return null;
+        }
+
+        const sourceDirectory = path.dirname(
+            path.join(projectRoot, sourcePath)
+        );
+
+        const resolvedPath = path.resolve(
+            sourceDirectory,
+            importPath
+        );
+
+        const candidates = [
+            resolvedPath,
+            `${resolvedPath}.js`,
+            path.join(resolvedPath, "index.js")
+        ];
+
+        const matched = candidates.find(candidate =>
+            fs.existsSync(candidate) &&
+            fs.statSync(candidate).isFile()
+        );
+
+        if (!matched) {
+            return null;
+        }
+
+        return normalize(
+            path.relative(projectRoot, matched)
+        );
+    };
+
+    const graph = new Map();
+
+    for (const file of moduleAnalysis.files) {
+        const source = normalize(file.path);
+
+        if (!graph.has(source)) {
+            graph.set(source, []);
+        }
+
+        for (const imported of file.imports || []) {
+            const target = resolveLocalImport(
+                file.path,
+                imported.module
+            );
+
+            if (target) {
+                graph.get(source).push(target);
+            }
+        }
+    }
+
+    const entryPoint = normalize("server/app.js");
+    const reachable = new Set();
+
+    function visit(modulePath) {
+        if (reachable.has(modulePath)) {
+            return;
+        }
+
+        reachable.add(modulePath);
+
+        for (const dependency of graph.get(modulePath) || []) {
+            visit(dependency);
+        }
+    }
+
+    visit(entryPoint);
+
+    for (const file of moduleAnalysis.files) {
+        const source = normalize(file.path);
+
+        if (reachable.has(source)) {
+            findings.push({
+                severity: "info",
+                type: "module-reachability",
+                source: file.path,
+                status: "reachable",
+                entryPoint,
+                message:
+                    "Module is reachable from the application entry point."
+            });
+        } else {
+            findings.push({
+                severity: "warning",
+                type: "module-reachability",
+                source: file.path,
+                status: "unreachable",
+                entryPoint,
+                message:
+                    "Module is not reachable from the application entry point."
+            });
+        }
+    }
+
+    return {
+        projectRoot,
+        generatedAt: new Date().toISOString(),
+        entryPoint,
+        reachableModules: [...reachable].sort(),
+        findings
+    };
+}
+
+export function analyzeApiRouteIntegrity() {
+    const projectRoot = PROJECT_ROOT;
+    const moduleAnalysis = analyzeProjectModules();
+    const findings = [];
+
+    const normalize = value =>
+        path.normalize(value).replace(/\\/g, "/");
+
+    const moduleMap = createModuleMap(moduleAnalysis.files);
+
+    const routeFiles = moduleAnalysis.files.filter(file => {
+        const normalizedPath = normalize(file.path);
+
+        return (
+            normalizedPath.startsWith("server/routes/") &&
+            normalizedPath.endsWith(".js")
+        );
+    });
+
+    for (const routeFile of routeFiles) {
+        const absoluteRoutePath = path.resolve(
+            projectRoot,
+            routeFile.path
+        );
+
+        const source = fs.readFileSync(
+            absoluteRoutePath,
+            "utf8"
+        );
+
+        const routeImportMap = new Map();
+
+        for (const imported of routeFile.imports || []) {
+            const resolved = resolveLocalImport(
+                absoluteRoutePath,
+                imported.module
+            );
+
+            if (
+                resolved.type !== "local" ||
+                !resolved.resolved
+            ) {
+                continue;
+            }
+
+            const targetPath = path.normalize(
+                path.resolve(
+                    projectRoot,
+                    resolved.target
+                )
+            );
+
+            const targetModule = moduleMap.get(targetPath);
+
+            if (!targetModule) {
+                continue;
+            }
+
+            for (const name of parseImportedNames(
+                imported.clause
+            )) {
+                routeImportMap.set(
+                    name,
+                    targetModule
+                );
+            }
+        }
+
+        const routePatterns = [
+            {
+                method: "GET",
+                pattern:
+                    /router\.get\(\s*["']([^"']+)["']\s*,\s*([A-Za-z_$][\w$]*)/g
+            },
+            {
+                method: "POST",
+                pattern:
+                    /router\.post\(\s*["']([^"']+)["']\s*,\s*([A-Za-z_$][\w$]*)/g
+            },
+            {
+                method: "PUT",
+                pattern:
+                    /router\.put\(\s*["']([^"']+)["']\s*,\s*([A-Za-z_$][\w$]*)/g
+            },
+            {
+                method: "PATCH",
+                pattern:
+                    /router\.patch\(\s*["']([^"']+)["']\s*,\s*([A-Za-z_$][\w$]*)/g
+            },
+            {
+                method: "DELETE",
+                pattern:
+                    /router\.delete\(\s*["']([^"']+)["']\s*,\s*([A-Za-z_$][\w$]*)/g
+            }
+        ];
+
+        for (const routePattern of routePatterns) {
+            let match;
+
+            while (
+                (match =
+                    routePattern.pattern.exec(source)) !== null
+            ) {
+                const route = match[1];
+                const handler = match[2];
+
+                const targetModule =
+                    routeImportMap.get(handler);
+
+                if (!targetModule) {
+                    findings.push({
+                        severity: "warning",
+                        type: "api-route-integrity",
+                        source: routeFile.path,
+                        method: routePattern.method,
+                        route,
+                        handler,
+                        status: "invalid",
+                        message:
+                            "API route handler is not resolved from the route module imports."
+                    });
+
+                    continue;
+                }
+
+                const handlerExported =
+                    targetModule.exports?.includes(handler);
+
+                if (!handlerExported) {
+                    findings.push({
+                        severity: "warning",
+                        type: "api-route-integrity",
+                        source: routeFile.path,
+                        method: routePattern.method,
+                        route,
+                        handler,
+                        target: targetModule.path,
+                        status: "invalid",
+                        message:
+                            "API route handler is imported, but the target module does not export that handler."
+                    });
+
+                    continue;
+                }
+
+                findings.push({
+                    severity: "info",
+                    type: "api-route-integrity",
+                    source: routeFile.path,
+                    method: routePattern.method,
+                    route,
+                    handler,
+                    target: targetModule.path,
+                    status: "valid",
+                    message:
+                        "API route resolves to a valid imported handler."
+                });
+            }
+        }
+    }
+
+    if (findings.length === 0) {
+        findings.push({
+            severity: "info",
+            type: "api-route-integrity",
+            status: "none-detected",
+            message:
+                "No API route declarations were detected in server route modules."
+        });
+    }
+
+    return {
+        projectRoot,
+        generatedAt: new Date().toISOString(),
+        findings
+    };
+}
