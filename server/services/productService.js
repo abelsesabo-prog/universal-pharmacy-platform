@@ -78,6 +78,96 @@ export async function getProductById(productId) {
     });
 }
 
+export async function updateProduct(productId, data) {
+    const products = getCollection(COLLECTIONS.PRODUCTS);
+
+    if (!ObjectId.isValid(productId)) {
+        const error = new Error("Invalid product ID.");
+        error.statusCode = 400;
+        throw error;
+    }
+
+    const _id = new ObjectId(productId);
+
+    const existing = await products.findOne({ _id });
+
+    if (!existing) {
+        const error = new Error("Product not found.");
+        error.statusCode = 404;
+        throw error;
+    }
+
+    const allowedFields = [
+        "brandName",
+        "genericName",
+        "dosageForm",
+        "category",
+        "strength",
+        "strengthUnit",
+        "manufacturer",
+        "registrationAgency",
+        "registrationNumber",
+        "baseUnit",
+        "uomMatrix",
+        "barcode"
+    ];
+
+    const updates = {};
+
+    for (const field of allowedFields) {
+        if (Object.prototype.hasOwnProperty.call(data, field)) {
+            updates[field] = data[field];
+        }
+    }
+
+    if (Object.keys(updates).length === 0) {
+        const error = new Error("No valid product fields were provided.");
+        error.statusCode = 400;
+        throw error;
+    }
+
+    const candidate = {
+        ...existing,
+        ...updates
+    };
+
+    const validation = validateProduct(candidate);
+
+    if (!validation.valid) {
+        const error = new Error(
+            `Missing required fields: ${validation.missing.join(", ")}`
+        );
+
+        error.statusCode = 400;
+        throw error;
+    }
+
+    const duplicate = await products.findOne({
+        _id: { $ne: _id },
+        brandName: String(candidate.brandName || "").trim(),
+        genericName: String(candidate.genericName || "").trim(),
+        dosageForm: String(candidate.dosageForm || "").trim(),
+        strength: candidate.strength ?? null
+    });
+
+    if (duplicate) {
+        const error = new Error("A matching product already exists.");
+        error.statusCode = 409;
+        throw error;
+    }
+
+    updates.updatedAt = new Date();
+
+    await products.updateOne(
+        { _id },
+        {
+            $set: updates
+        }
+    );
+
+    return products.findOne({ _id });
+}
+
 export async function listProducts(options = {}) {
     const products = getCollection(COLLECTIONS.PRODUCTS);
 
