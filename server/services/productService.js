@@ -92,11 +92,10 @@ export async function updateProduct(productId, data) {
     const existing = await products.findOne({ _id });
 
     if (!existing) {
-        const error = new Error("Product not found.");
-        error.statusCode = 404;
-        throw error;
-    }
-
+    const error = new Error("Product not found.");
+    error.statusCode = 404;
+    throw error;
+}
     const allowedFields = [
         "brandName",
         "genericName",
@@ -167,6 +166,34 @@ export async function updateProduct(productId, data) {
 
     return products.findOne({ _id });
 }
+
+export async function deleteProduct(productId) {
+    const products = getCollection(COLLECTIONS.PRODUCTS);
+
+    if (!ObjectId.isValid(productId)) {
+        const error = new Error("Invalid product ID.");
+        error.statusCode = 400;
+        throw error;
+    }
+
+    const _id = new ObjectId(productId);
+
+    const existing = await products.findOne({ _id });
+
+    if (!existing) {
+    const error = new Error("Product not found.");
+    error.statusCode = 404;
+    throw error;
+}
+
+    await products.deleteOne({ _id });
+
+    return {
+        deleted: true,
+        product: existing
+    };
+}
+
 
 export async function listProducts(options = {}) {
     const products = getCollection(COLLECTIONS.PRODUCTS);
