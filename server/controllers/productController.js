@@ -7,6 +7,7 @@ import {
     createProduct,
     getProductById,
     updateProduct,
+    deleteProduct,
     listProducts
 } from "../services/productService.js";
 
@@ -65,6 +66,25 @@ export async function updateProductController(req, res) {
         res.status(200).json({
             success: true,
             product
+        });
+
+    } catch (error) {
+        const statusCode = error.statusCode || 500;
+
+        res.status(statusCode).json({
+            success: false,
+            error: error.message
+        });
+    }
+}
+
+export async function deleteProductController(req, res) {
+    try {
+        const result = await deleteProduct(req.params.id);
+
+        res.status(200).json({
+            success: true,
+            ...result
         });
 
     } catch (error) {
