@@ -10,6 +10,8 @@ export const COLLECTIONS = Object.freeze({
     BRANCHES: "branches",
     PRODUCTS: "products",
     BATCHES: "batches",
+    TRANSACTIONS: "transactions",
+    PAYMENTS: "payments",
     SALES: "sales",
     SALE_ITEMS: "sale_items",
     PURCHASES: "purchases",

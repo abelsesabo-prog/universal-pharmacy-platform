@@ -1,12 +1,28 @@
+import path from "path";
+import { fileURLToPath } from "url";
 import express from "express";
+
 import config from "./config/config.js";
 import { connectMongoDB } from "./database/mongo.js";
 import routes from "./routes/index.js";
+import {
+    errorHandler
+} from "./middleware/errorHandler.js";
+
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
 app.use(express.json());
+
+app.use(express.static(path.join(__dirname, "../client")));
+
 app.use("/api", routes);
+app.use(
+    errorHandler
+);
 
 async function startServer() {
     try {
@@ -26,3 +42,4 @@ async function startServer() {
 startServer();
 
 export default app;
+
