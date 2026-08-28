@@ -169,6 +169,11 @@ export async function updateProduct(productId, data) {
 
 export async function deleteProduct(productId) {
     const products = getCollection(COLLECTIONS.PRODUCTS);
+    const batches = getCollection(COLLECTIONS.BATCHES);
+    const transactions = getCollection(COLLECTIONS.TRANSACTIONS);
+    const stockMovements = getCollection(
+        COLLECTIONS.STOCK_MOVEMENTS
+    );
 
     if (!ObjectId.isValid(productId)) {
         const error = new Error("Invalid product ID.");
@@ -181,10 +186,47 @@ export async function deleteProduct(productId) {
     const existing = await products.findOne({ _id });
 
     if (!existing) {
-    const error = new Error("Product not found.");
-    error.statusCode = 404;
-    throw error;
-}
+        const error = new Error("Product not found.");
+        error.statusCode = 404;
+        throw error;
+    }
+
+    const existingBatch = await batches.findOne({
+        productId: _id
+    });
+
+    if (existingBatch) {
+        const error = new Error(
+            "Cannot delete product with existing batches."
+        );
+        error.statusCode = 409;
+        throw error;
+    }
+
+    const existingTransaction = await transactions.findOne({
+        "items.productId": _id
+    });
+
+    if (existingTransaction) {
+        const error = new Error(
+            "Cannot delete product with transaction history."
+        );
+        error.statusCode = 409;
+        throw error;
+    }
+
+    const existingStockMovement =
+        await stockMovements.findOne({
+            productId: _id
+        });
+
+    if (existingStockMovement) {
+        const error = new Error(
+            "Cannot delete product with stock movement history."
+        );
+        error.statusCode = 409;
+        throw error;
+    }
 
     await products.deleteOne({ _id });
 
@@ -193,7 +235,6 @@ export async function deleteProduct(productId) {
         product: existing
     };
 }
-
 
 export async function listProducts(options = {}) {
     const products = getCollection(COLLECTIONS.PRODUCTS);
