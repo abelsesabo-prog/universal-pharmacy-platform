@@ -291,6 +291,7 @@
                         <th>Form</th>
                         <th>Category</th>
                         <th>Strength</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
 
@@ -298,7 +299,7 @@
 
                     <tr>
                         <td
-                            colspan="5"
+                            colspan="6"
                             class="empty"
                         >
                             Loading products...
@@ -626,8 +627,18 @@ async function loadProducts() {
                 <td>
                     ${product.strength || ""}
                 </td>
-            `;
 
+<td>
+    <button
+        type="button"
+        class="delete-product-button"
+        data-product-id="${product._id}"
+        data-product-name="${product.brandName || product.genericName || "this product"}"
+    >
+        Delete
+    </button>
+</td>
+            `;
 
             tableBody.appendChild(
                 row
@@ -1497,6 +1508,113 @@ document
                         await loadProducts();
 
                     } catch (error) {
+
+                        message.textContent =
+                            error.message;
+
+                    }
+
+                }
+            );
+
+        // ==========================================
+        // DELETE PRODUCT
+        // ==========================================
+
+        document
+            .getElementById(
+                "productTableBody"
+            )
+            .addEventListener(
+                "click",
+                async function (event) {
+
+                    const button =
+                        event.target.closest(
+                            ".delete-product-button"
+                        );
+
+                    if (!button) {
+                        return;
+                    }
+
+
+                    const productId =
+                        button.dataset.productId;
+
+                    const productName =
+                        button.dataset.productName;
+
+
+                    const confirmed =
+                        window.confirm(
+                            `Delete "${productName}"?`
+                        );
+
+
+                    if (!confirmed) {
+                        return;
+                    }
+
+
+                    button.disabled =
+                        true;
+
+                    button.textContent =
+                        "Deleting...";
+
+
+                    try {
+
+                        const response =
+                            await fetch(
+                                `/api/products/${productId}`,
+                                {
+                                    method: "DELETE"
+                                }
+                            );
+
+
+                        const data =
+                            await response.json();
+
+
+                        if (!response.ok) {
+
+                            throw new Error(
+                                data.error ||
+                                "Failed to delete product."
+                            );
+
+                        }
+
+
+                        await loadProducts();
+
+
+                        const message =
+                            document.getElementById(
+                                "productMessage"
+                            );
+
+
+                        message.textContent =
+                            "Product deleted successfully.";
+
+                    } catch (error) {
+
+                        button.disabled =
+                            false;
+
+                        button.textContent =
+                            "Delete";
+
+
+                        const message =
+                            document.getElementById(
+                                "productMessage"
+                            );
+
 
                         message.textContent =
                             error.message;
