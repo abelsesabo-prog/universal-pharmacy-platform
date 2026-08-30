@@ -74,6 +74,33 @@ export function validateBatch(batch) {
         };
     }
 
+if (
+    batch.costPrice !== undefined &&
+    batch.costPrice !== null &&
+    batch.costPrice !== "" &&
+    !isNonNegativeNumber(batch.costPrice)
+) {
+    return {
+        valid: false,
+        missing: [],
+        error: "Cost price must be zero or greater."
+    };
+}
+
+
+if (
+    batch.sellingPrice !== undefined &&
+    batch.sellingPrice !== null &&
+    batch.sellingPrice !== "" &&
+    !isNonNegativeNumber(batch.sellingPrice)
+) {
+    return {
+        valid: false,
+        missing: [],
+        error: "Selling price must be zero or greater."
+    };
+}
+
     return {
         valid: true,
         missing: []

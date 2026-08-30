@@ -16,18 +16,50 @@ import { getCollection } from "./index.js";
 
 function normalizeBatch(data) {
     return {
-        productId: new ObjectId(
-            String(data.productId).trim()
-        ),
+        productId:
+            new ObjectId(
+                String(data.productId).trim()
+            ),
 
         batchNumber:
-            String(data.batchNumber || "").trim(),
+            String(
+                data.batchNumber || ""
+            ).trim(),
 
         quantity:
-            Number(data.quantity),
+            Number(
+                data.quantity
+            ),
 
         expiryDate:
-            new Date(data.expiryDate),
+            new Date(
+                data.expiryDate
+            ),
+
+        costPrice:
+            data.costPrice === "" ||
+            data.costPrice === undefined ||
+            data.costPrice === null
+                ? null
+                : Number(
+                    data.costPrice
+                ),
+
+        sellingPrice:
+            data.sellingPrice === "" ||
+            data.sellingPrice === undefined ||
+            data.sellingPrice === null
+                ? null
+                : Number(
+                    data.sellingPrice
+                ),
+
+        location:
+            data.location
+                ? String(
+                    data.location
+                ).trim()
+                : null,
 
         createdAt:
             new Date(),
@@ -179,11 +211,13 @@ export async function updateBatch(
 
 
     const allowedFields = [
-        "batchNumber",
-        "quantity",
-        "expiryDate"
-    ];
-
+    "batchNumber",
+    "quantity",
+    "expiryDate",
+    "costPrice",
+    "sellingPrice",
+    "location"
+];
 
     const updates = {};
 
@@ -247,6 +281,52 @@ export async function updateBatch(
         updates.expiryDate =
             new Date(updates.expiryDate);
     }
+
+if (
+    Object.prototype.hasOwnProperty.call(
+        updates,
+        "costPrice"
+    )
+) {
+    updates.costPrice =
+        updates.costPrice === "" ||
+        updates.costPrice === null
+            ? null
+            : Number(
+                updates.costPrice
+            );
+}
+
+
+if (
+    Object.prototype.hasOwnProperty.call(
+        updates,
+        "sellingPrice"
+    )
+) {
+    updates.sellingPrice =
+        updates.sellingPrice === "" ||
+        updates.sellingPrice === null
+            ? null
+            : Number(
+                updates.sellingPrice
+            );
+}
+
+
+if (
+    Object.prototype.hasOwnProperty.call(
+        updates,
+        "location"
+    )
+) {
+    updates.location =
+        updates.location
+            ? String(
+                updates.location
+            ).trim()
+            : null;
+}
 
 
     const candidate = {
