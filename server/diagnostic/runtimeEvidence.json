@@ -1,0 +1,324 @@
+[
+  {
+    "capabilityId": "batch.product-linkage",
+    "assertion": "invalid-product-id-rejected",
+    "status": "PASSED",
+    "verified": true,
+    "source": "runtime-probe-runner",
+    "evidence": {
+      "httpStatus": 400,
+      "response": {
+        "success": false,
+        "error": "Invalid product ID."
+      }
+    },
+    "details": "Invalid product ID was rejected before batch creation.",
+    "recordedAt": "2026-08-30T16:28:40.649Z"
+  },
+  {
+    "capabilityId": "batch.product-linkage",
+    "assertion": "missing-product-rejected",
+    "status": "PASSED",
+    "verified": true,
+    "source": "runtime-probe-runner",
+    "evidence": {
+      "productId": "000000000000000000000000",
+      "httpStatus": 404,
+      "response": {
+        "success": false,
+        "error": "Product not found."
+      }
+    },
+    "details": "Batch creation was rejected when the referenced product did not exist.",
+    "recordedAt": "2026-08-30T16:28:40.826Z"
+  },
+  {
+    "capabilityId": "batch.product-linkage",
+    "assertion": "product-batch-integrity-enforced",
+    "status": "PASSED",
+    "verified": true,
+    "source": "runtime-probe-runner",
+    "evidence": {
+      "productId": "6a945a38d67d817d2223e464",
+      "batchId": "6a945a39d67d817d2223e465",
+      "storedProductId": "6a945a38d67d817d2223e464",
+      "batchNumber": "DIAGNOSTIC-BATCH-1788107321138-YZFSIS",
+      "httpStatus": 201,
+      "response": {
+        "success": true,
+        "batch": {
+          "productId": "6a945a38d67d817d2223e464",
+          "batchNumber": "DIAGNOSTIC-BATCH-1788107321138-YZFSIS",
+          "quantity": 5,
+          "expiryDate": "2035-12-31T00:00:00.000Z",
+          "costPrice": 100,
+          "sellingPrice": 150,
+          "location": "DIAGNOSTIC-INTEGRITY",
+          "createdAt": "2026-08-30T16:28:41.253Z",
+          "updatedAt": "2026-08-30T16:28:41.253Z",
+          "_id": "6a945a39d67d817d2223e465"
+        }
+      }
+    },
+    "details": "Created batch preserved the exact product linkage.",
+    "recordedAt": "2026-08-30T16:28:41.556Z"
+  },
+  {
+    "capabilityId": "inventory.stock-protection.oversale",
+    "assertion": "oversale-rejected",
+    "status": "PASSED",
+    "verified": true,
+    "source": "runtime-probe-runner",
+    "evidence": {
+      "productId": "6a945a39d67d817d2223e466",
+      "batchId": "6a945a3ad67d817d2223e467",
+      "availableQuantity": 5,
+      "requestedQuantity": 6,
+      "httpStatus": 400,
+      "response": {
+        "success": false,
+        "error": "Insufficient stock. Current batch quantity is 5."
+      }
+    },
+    "details": "Oversale request against a real controlled batch was rejected.",
+    "recordedAt": "2026-08-30T16:28:42.404Z"
+  },
+  {
+    "capabilityId": "inventory.stock-protection.oversale",
+    "assertion": "negative-stock-prevented",
+    "status": "PASSED",
+    "verified": true,
+    "source": "runtime-probe-runner",
+    "evidence": {
+      "productId": "6a945a3ad67d817d2223e468",
+      "batchId": "6a945a3bd67d817d2223e469",
+      "availableQuantity": 5,
+      "requestedQuantity": 105,
+      "httpStatus": 400,
+      "response": {
+        "success": false,
+        "error": "Insufficient stock. Current batch quantity is 5."
+      }
+    },
+    "details": "Runtime system prevented stock from becoming negative.",
+    "recordedAt": "2026-08-30T16:28:43.290Z"
+  },
+  {
+    "capabilityId": "inventory.stock-protection.quantity",
+    "assertion": "negative-quantity-rejected",
+    "status": "PASSED",
+    "verified": true,
+    "source": "runtime-probe-runner",
+    "evidence": {
+      "httpStatus": 400,
+      "response": {
+        "success": false,
+        "error": "Movement quantity must be greater than zero."
+      }
+    },
+    "details": "Negative movement quantity was rejected.",
+    "recordedAt": "2026-08-30T16:28:43.301Z"
+  },
+  {
+    "capabilityId": "inventory.stock-protection.quantity",
+    "assertion": "zero-quantity-rejected",
+    "status": "PASSED",
+    "verified": true,
+    "source": "runtime-probe-runner",
+    "evidence": {
+      "httpStatus": 400,
+      "response": {
+        "success": false,
+        "error": "Movement quantity must be greater than zero."
+      }
+    },
+    "details": "Zero movement quantity was rejected.",
+    "recordedAt": "2026-08-30T16:28:43.313Z"
+  },
+  {
+    "capabilityId": "inventory.stock-movement.adjustment",
+    "assertion": "controlled-adjustment-runtime",
+    "status": "PASSED",
+    "verified": true,
+    "source": "runtime-adjustment-test",
+    "evidence": {
+      "initialQuantity": 10,
+      "increasedQuantity": 15,
+      "decreasedQuantity": 12,
+      "oversizeDecreaseRejected": true,
+      "finalQuantity": 12
+    },
+    "details": "Controlled runtime adjustment test proved increase, decrease, and oversize decrease protection.",
+    "recordedAt": "2026-08-30T16:37:15.555Z"
+  },
+  {
+    "capabilityId": "inventory.stock-movement.sale",
+    "assertion": "sale-stock-deducted-runtime",
+    "status": "PASSED",
+    "verified": true,
+    "source": "runtime-sale-test",
+    "evidence": {
+      "initialQuantity": 10,
+      "soldQuantity": 3,
+      "previousQuantity": 10,
+      "newQuantity": 7,
+      "quantityChange": -3,
+      "finalQuantity": 7
+    },
+    "details": "Controlled runtime sale test proved that a SALE movement deducted the exact quantity from the correct batch.",
+    "recordedAt": "2026-08-30T17:07:37.283Z"
+  },
+  {
+    "capabilityId": "inventory.stock-movement.purchase",
+    "assertion": "purchase-stock-increased-runtime",
+    "status": "PASSED",
+    "verified": true,
+    "source": "runtime-purchase-test",
+    "evidence": {
+      "initialQuantity": 10,
+      "purchasedQuantity": 5,
+      "previousQuantity": 10,
+      "newQuantity": 15,
+      "quantityChange": 5,
+      "finalQuantity": 15
+    },
+    "details": "Controlled runtime purchase test proved that a PURCHASE movement increased the exact quantity in the correct batch.",
+    "recordedAt": "2026-08-30T17:09:34.689Z"
+  },
+  {
+    "capabilityId": "inventory.stock-movement.return",
+    "assertion": "return-stock-restored-runtime",
+    "status": "PASSED",
+    "verified": true,
+    "source": "runtime-return-test",
+    "evidence": {
+      "initialQuantity": 10,
+      "returnedQuantity": 4,
+      "previousQuantity": 10,
+      "newQuantity": 14,
+      "quantityChange": 4,
+      "finalQuantity": 14
+    },
+    "details": "Controlled runtime return test proved that a RETURN movement restored the exact quantity in the correct batch.",
+    "recordedAt": "2026-08-30T17:10:54.132Z"
+  },
+  {
+    "capabilityId": "inventory.stock-movement.damage",
+    "assertion": "damaged-stock-removed-runtime",
+    "status": "PASSED",
+    "verified": true,
+    "source": "runtime-damage-test",
+    "evidence": {
+      "initialQuantity": 10,
+      "damagedQuantity": 4,
+      "previousQuantity": 10,
+      "newQuantity": 6,
+      "quantityChange": -4,
+      "finalQuantity": 6
+    },
+    "details": "Controlled runtime damage test proved that a DAMAGE movement removed the exact quantity from the correct batch.",
+    "recordedAt": "2026-08-30T17:12:07.435Z"
+  },
+  {
+    "capabilityId": "inventory.stock-movement.expired",
+    "assertion": "expired-stock-removed-runtime",
+    "status": "PASSED",
+    "verified": true,
+    "source": "runtime-expired-test",
+    "evidence": {
+      "initialQuantity": 10,
+      "expiredQuantity": 4,
+      "previousQuantity": 10,
+      "newQuantity": 6,
+      "quantityChange": -4,
+      "finalQuantity": 6
+    },
+    "details": "Controlled runtime expired stock test proved that an EXPIRED movement removed the exact quantity from the correct batch.",
+    "recordedAt": "2026-08-30T17:13:27.815Z"
+  },
+  {
+    "capabilityId": "inventory.stock-movement.transfer",
+    "assertion": "transfer-stock-moved-runtime",
+    "status": "PASSED",
+    "verified": true,
+    "source": "runtime-transfer-test",
+    "evidence": {
+      "initialQuantity": 10,
+      "transferOutQuantity": 4,
+      "afterTransferOut": 6,
+      "transferInQuantity": 3,
+      "afterTransferIn": 9,
+      "finalQuantity": 9
+    },
+    "details": "Controlled runtime transfer test proved that TRANSFER_OUT decreased stock and TRANSFER_IN increased stock through auditable movement records.",
+    "recordedAt": "2026-08-30T17:15:19.511Z"
+  },
+  {
+    "capabilityId": "batch.financial-intelligence",
+    "assertion": "batch-financial-values-preserved-runtime",
+    "status": "PASSED",
+    "verified": true,
+    "source": "runtime-financial-intelligence-test",
+    "evidence": {
+      "expectedCostPrice": 123.45,
+      "expectedSellingPrice": 234.56,
+      "createdCostPrice": 123.45,
+      "createdSellingPrice": 234.56,
+      "fetchedCostPrice": 123.45,
+      "fetchedSellingPrice": 234.56
+    },
+    "details": "Controlled runtime batch financial intelligence test proved that costPrice and sellingPrice were preserved during batch creation and remained intact when the batch was fetched again.",
+    "recordedAt": "2026-08-30T17:28:20.787Z"
+  },
+  {
+    "capabilityId": "product.identity-management",
+    "assertion": "product-identity-fields-preserved-runtime",
+    "status": "PASSED",
+    "verified": true,
+    "source": "runtime-product-identity-test",
+    "evidence": {
+      "brandName": "DIAGNOSTIC-IDENTITY-1788111142308",
+      "genericName": "Runtime Product Identity Test",
+      "dosageForm": "TEST",
+      "category": "DIAGNOSTIC",
+      "creationPreserved": true,
+      "retrievalPreserved": true
+    },
+    "details": "Controlled runtime product identity test proved that brandName, genericName, dosageForm, and category were preserved during product creation and remained intact when the product was fetched again.",
+    "recordedAt": "2026-08-30T17:33:16.076Z"
+  },
+  {
+    "capabilityId": "batch.expiry-tracking",
+    "assertion": "batch-expiry-fields-preserved-runtime",
+    "status": "PASSED",
+    "verified": true,
+    "source": "runtime-batch-expiry-test",
+    "evidence": {
+      "batchNumber": "EXPIRY-1788111232227",
+      "quantity": 25,
+      "expectedExpiryDate": "2035-12-31",
+      "createdExpiryDate": "2035-12-31",
+      "fetchedExpiryDate": "2035-12-31",
+      "creationPreserved": true,
+      "retrievalPreserved": true
+    },
+    "details": "Controlled runtime batch expiry test proved that batchNumber, quantity, and expiryDate were preserved during batch creation and remained intact when the batch was fetched again.",
+    "recordedAt": "2026-08-30T17:34:29.983Z"
+  },
+  {
+    "capabilityId": "batch.location-management",
+    "assertion": "batch-location-preserved-runtime",
+    "status": "PASSED",
+    "verified": true,
+    "source": "runtime-batch-location-test",
+    "evidence": {
+      "expectedLocation": "DIAGNOSTIC-LOCATION-1788111324440",
+      "createdLocation": "DIAGNOSTIC-LOCATION-1788111324440",
+      "fetchedLocation": "DIAGNOSTIC-LOCATION-1788111324440",
+      "creationPreserved": true,
+      "retrievalPreserved": true
+    },
+    "details": "Controlled runtime batch location test proved that the location value was preserved during batch creation and remained intact when the batch was fetched again.",
+    "recordedAt": "2026-08-30T17:36:04.837Z"
+  }
+]

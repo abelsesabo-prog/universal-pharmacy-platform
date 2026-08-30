@@ -1,4 +1,4 @@
-// ==========================================
+﻿// ==========================================
 // Universal Pharmacy Platform
 // Architecture Intelligence
 // Read-Only Architecture Scanner
@@ -1022,55 +1022,94 @@ export function analyzeUnusedExports() {
     const normalize = value =>
         path.normalize(value).replace(/\\/g, "/");
 
-    const importedSymbols = new Set();
+    const resolveLocalImport = (sourcePath, importPath) => {
+        if (!importPath || !importPath.startsWith(".")) {
+            return null;
+        }
 
-    for (const file of moduleAnalysis.files) {
-        for (const imported of file.imports || []) {
-            if (!imported || typeof imported !== "object") {
-                continue;
-            }
+        const sourceDirectory = path.dirname(
+            path.join(projectRoot, sourcePath)
+        );
 
-            const clause = imported.clause || "";
+        const resolvedPath = path.resolve(
+            sourceDirectory,
+            importPath
+        );
 
-            /*
-             * Named imports:
-             * import { foo, bar as baz } from "./module.js"
-             */
-            const namedMatches = clause.match(
-                /\{([^}]+)\}/
-            );
+        const candidates = [
+            resolvedPath,
+            `${resolvedPath}.js`,
+            path.join(resolvedPath, "index.js")
+        ];
 
-            if (namedMatches) {
-                for (const name of namedMatches[1].split(",")) {
-                    const cleaned = name
-                        .trim()
-                        .split(/\s+as\s+/)[0]
-                        .trim();
+        const matched = candidates.find(candidate =>
+            fs.existsSync(candidate) &&
+            fs.statSync(candidate).isFile()
+        );
 
-                    if (cleaned) {
-                        importedSymbols.add(cleaned);
+        if (!matched) {
+            return null;
+        }
+
+        return normalize(
+            path.relative(projectRoot, matched)
+        );
+    };
+
+    const isSymbolImportedFromSource = (
+        sourceFile,
+        exportedSymbol
+    ) => {
+        const normalizedSource = normalize(sourceFile);
+
+        for (const importingFile of moduleAnalysis.files) {
+            for (const imported of importingFile.imports || []) {
+                if (!imported || typeof imported !== "object") {
+                    continue;
+                }
+
+                const resolvedModule = resolveLocalImport(
+                    importingFile.path,
+                    imported.module
+                );
+
+                if (
+                    !resolvedModule ||
+                    resolvedModule !== normalizedSource
+                ) {
+                    continue;
+                }
+
+                const clause = imported.clause || "";
+
+                const namedMatches = clause.match(
+                    /\{([^}]+)\}/
+                );
+
+                if (namedMatches) {
+                    for (const name of namedMatches[1].split(",")) {
+                        const importedName = name
+                            .trim()
+                            .split(/\s+as\s+/)[0]
+                            .trim();
+
+                        if (importedName === exportedSymbol) {
+                            return true;
+                        }
                     }
                 }
-            }
 
-            /*
-             * Default imports:
-             * import config from "./config.js"
-             */
-            const defaultMatch = clause.match(
-                /^([A-Za-z_$][\w$]*)$/
-            );
-
-            if (
-                defaultMatch &&
-                !clause.startsWith("{") &&
-                !clause.startsWith("*")
-            ) {
-                importedSymbols.add("default");
+                if (
+                    clause.startsWith("*") &&
+                    exportedSymbol !== "default"
+                ) {
+                    return true;
+                }
             }
         }
-    }
 
+        return false;
+    };
     /*
      * The diagnostic scanner is itself a public diagnostic API.
      * Its exported analysis functions are intentionally invoked
@@ -1139,7 +1178,7 @@ export function analyzeUnusedExports() {
                 continue;
             }
 
-            if (importedSymbols.has(exported)) {
+            if (isSymbolImportedFromSource(file.path, exported)) {
                 findings.push({
                     severity: "info",
                     type: "export-usage",
@@ -1466,3 +1505,4 @@ export function analyzeApiRouteIntegrity() {
         findings
     };
 }
+
