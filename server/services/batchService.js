@@ -407,6 +407,15 @@ export async function deleteBatch(batchId) {
     const batches =
         getCollection(COLLECTIONS.BATCHES);
 
+    const transactions =
+        getCollection(COLLECTIONS.TRANSACTIONS);
+
+    const stockMovements =
+        getCollection(
+            COLLECTIONS.STOCK_MOVEMENTS
+        );
+
+
     const _id =
         new ObjectId(batchId);
 
@@ -425,6 +434,42 @@ export async function deleteBatch(batchId) {
     }
 
 
+    const existingTransaction =
+        await transactions.findOne({
+            "items.batchId": _id
+        });
+
+
+    if (existingTransaction) {
+        const error =
+            new Error(
+                "Cannot delete batch with transaction history."
+            );
+
+        error.statusCode = 409;
+
+        throw error;
+    }
+
+
+    const existingStockMovement =
+        await stockMovements.findOne({
+            batchId: _id
+        });
+
+
+    if (existingStockMovement) {
+        const error =
+            new Error(
+                "Cannot delete batch with stock movement history."
+            );
+
+        error.statusCode = 409;
+
+        throw error;
+    }
+
+
     await batches.deleteOne({
         _id
     });
@@ -435,7 +480,6 @@ export async function deleteBatch(batchId) {
         batch: existing
     };
 }
-
 
 export async function listBatches(
     options = {}
