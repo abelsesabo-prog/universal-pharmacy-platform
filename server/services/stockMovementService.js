@@ -60,6 +60,15 @@ function normalizeMovement(data) {
                 data.quantity
             ),
 
+        adjustmentDirection:
+            data.adjustmentDirection
+                ? String(
+                    data.adjustmentDirection
+                )
+                    .trim()
+                    .toUpperCase()
+                : null,
+
         reference:
             data.reference
                 ? String(
@@ -175,23 +184,42 @@ export async function createStockMovement(
 
 
     // --------------------------------------
-    // ADJUSTMENT IS NOT YET AUTOMATIC
+    // VALIDATE ADJUSTMENT DIRECTION
     // --------------------------------------
+
+    let adjustmentDirection =
+        null;
 
     if (
         type === "ADJUSTMENT"
     ) {
 
-        const error =
-            new Error(
-                "ADJUSTMENT movements require controlled adjustment logic and are not yet supported."
-            );
+        adjustmentDirection =
+            String(
+                data.adjustmentDirection || ""
+            )
+                .trim()
+                .toUpperCase();
 
-        error.statusCode = 400;
+        if (
+            ![
+                "INCREASE",
+                "DECREASE"
+            ].includes(
+                adjustmentDirection
+            )
+        ) {
 
-        throw error;
+            const error =
+                new Error(
+                    "ADJUSTMENT movements require adjustmentDirection to be INCREASE or DECREASE."
+                );
+
+            error.statusCode = 400;
+
+            throw error;
+        }
     }
-
 
     // --------------------------------------
     // VALIDATE QUANTITY
@@ -322,7 +350,17 @@ export async function createStockMovement(
     }
 
 
-    // --------------------------------------
+    if (
+        type === "ADJUSTMENT"
+    ) {
+
+        quantityChange =
+            adjustmentDirection ===
+            "INCREASE"
+                ? quantity
+                : -quantity;
+    }
+
     // PREVENT NEGATIVE STOCK
     // --------------------------------------
 
