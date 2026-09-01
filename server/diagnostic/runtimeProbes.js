@@ -1164,6 +1164,503 @@ const productBatchIntegrityProbe = {
     }
 };
 
+
+// ==========================================
+// Controlled Stock Adjustment Probe
+// ==========================================
+
+const controlledAdjustmentProbe = {
+
+    capabilityId:
+        "inventory.stock-adjustment.controlled",
+
+    assertion:
+        "controlled-adjustment-directions-enforced",
+
+    safety:
+        PROBE_SAFETY.CONTROLLED,
+
+    async execute(
+        context
+    ) {
+
+        const {
+            baseUrl,
+            safeFetch
+        } = context;
+
+
+        // --------------------------------------
+        // CREATE CONTROLLED STOCK
+        // --------------------------------------
+
+        const stockContext =
+            await createControlledStockContext(
+                context
+            );
+
+
+        const initialQuantity =
+            stockContext.quantity;
+
+
+        // --------------------------------------
+        // INCREASE
+        // --------------------------------------
+
+        const increaseResponse =
+            await safeFetch(
+                `${baseUrl}/api/stock-movements`,
+                {
+                    method:
+                        "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body:
+                        JSON.stringify({
+                            productId:
+                                stockContext.productId,
+
+                            batchId:
+                                stockContext.batchId,
+
+                            type:
+                                "ADJUSTMENT",
+
+                            quantity:
+                                2,
+
+                            adjustmentDirection:
+                                "INCREASE",
+
+                            reference:
+                                createProbeReference(
+                                    "ADJUSTMENT-INCREASE-PROBE"
+                                ),
+
+                            notes:
+                                "Diagnostic controlled adjustment increase probe."
+                        })
+                }
+            );
+
+
+        const increasePassed =
+            increaseResponse.status === 201 &&
+            increaseResponse.body?.success === true &&
+            increaseResponse.body?.movement?.quantityChange === 2 &&
+            increaseResponse.body?.movement?.previousQuantity ===
+                initialQuantity &&
+            increaseResponse.body?.movement?.newQuantity ===
+                initialQuantity + 2;
+
+
+        if (!increasePassed) {
+
+            return createFailedResult(
+                {
+                    stage:
+                        "INCREASE",
+
+                    productId:
+                        stockContext.productId,
+
+                    batchId:
+                        stockContext.batchId,
+
+                    initialQuantity,
+
+                    httpStatus:
+                        increaseResponse.status,
+
+                    response:
+                        increaseResponse.body
+                },
+
+                "Controlled ADJUSTMENT INCREASE did not produce the expected stock change."
+            );
+        }
+
+
+        // --------------------------------------
+        // DECREASE
+        // --------------------------------------
+
+        const decreaseResponse =
+            await safeFetch(
+                `${baseUrl}/api/stock-movements`,
+                {
+                    method:
+                        "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body:
+                        JSON.stringify({
+                            productId:
+                                stockContext.productId,
+
+                            batchId:
+                                stockContext.batchId,
+
+                            type:
+                                "ADJUSTMENT",
+
+                            quantity:
+                                2,
+
+                            adjustmentDirection:
+                                "DECREASE",
+
+                            reference:
+                                createProbeReference(
+                                    "ADJUSTMENT-DECREASE-PROBE"
+                                ),
+
+                            notes:
+                                "Diagnostic controlled adjustment decrease probe."
+                        })
+                }
+            );
+
+
+        const expectedAfterDecrease =
+            initialQuantity;
+
+
+        const decreasePassed =
+            decreaseResponse.status === 201 &&
+            decreaseResponse.body?.success === true &&
+            decreaseResponse.body?.movement?.quantityChange === -2 &&
+            decreaseResponse.body?.movement?.previousQuantity ===
+                initialQuantity + 2 &&
+            decreaseResponse.body?.movement?.newQuantity ===
+                expectedAfterDecrease;
+
+
+        if (!decreasePassed) {
+
+            return createFailedResult(
+                {
+                    stage:
+                        "DECREASE",
+
+                    productId:
+                        stockContext.productId,
+
+                    batchId:
+                        stockContext.batchId,
+
+                    expectedQuantity:
+                        expectedAfterDecrease,
+
+                    httpStatus:
+                        decreaseResponse.status,
+
+                    response:
+                        decreaseResponse.body
+                },
+
+                "Controlled ADJUSTMENT DECREASE did not produce the expected stock change."
+            );
+        }
+
+
+        // --------------------------------------
+        // INVALID DIRECTION
+        // --------------------------------------
+
+        const invalidResponse =
+            await safeFetch(
+                `${baseUrl}/api/stock-movements`,
+                {
+                    method:
+                        "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body:
+                        JSON.stringify({
+                            productId:
+                                stockContext.productId,
+
+                            batchId:
+                                stockContext.batchId,
+
+                            type:
+                                "ADJUSTMENT",
+
+                            quantity:
+                                1,
+
+                            adjustmentDirection:
+                                "WRONG",
+
+                            reference:
+                                createProbeReference(
+                                    "ADJUSTMENT-INVALID-PROBE"
+                                ),
+
+                            notes:
+                                "Diagnostic invalid adjustment direction probe."
+                        })
+                }
+            );
+
+
+        const invalidRejected =
+            invalidResponse.status >= 400 &&
+            responseContains(
+                invalidResponse,
+                "ADJUSTMENT movements require adjustmentDirection"
+            );
+
+
+        if (!invalidRejected) {
+
+            return createFailedResult(
+                {
+                    stage:
+                        "INVALID-DIRECTION",
+
+                    productId:
+                        stockContext.productId,
+
+                    batchId:
+                        stockContext.batchId,
+
+                    httpStatus:
+                        invalidResponse.status,
+
+                    response:
+                        invalidResponse.body
+                },
+
+                "Invalid ADJUSTMENT direction was not rejected."
+            );
+        }
+
+
+        // --------------------------------------
+        // OVERDRAW DECREASE
+        // --------------------------------------
+
+        const overdrawQuantity =
+            expectedAfterDecrease + 1;
+
+
+        const overdrawResponse =
+            await safeFetch(
+                `${baseUrl}/api/stock-movements`,
+                {
+                    method:
+                        "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body:
+                        JSON.stringify({
+                            productId:
+                                stockContext.productId,
+
+                            batchId:
+                                stockContext.batchId,
+
+                            type:
+                                "ADJUSTMENT",
+
+                            quantity:
+                                overdrawQuantity,
+
+                            adjustmentDirection:
+                                "DECREASE",
+
+                            reference:
+                                createProbeReference(
+                                    "ADJUSTMENT-OVERDRAW-PROBE"
+                                ),
+
+                            notes:
+                                "Diagnostic insufficient stock adjustment probe."
+                        })
+                }
+            );
+
+
+        const overdrawRejected =
+            overdrawResponse.status >= 400 &&
+            responseContains(
+                overdrawResponse,
+                "insufficient stock"
+            );
+
+
+        if (!overdrawRejected) {
+
+            return createFailedResult(
+                {
+                    stage:
+                        "OVERDRAW",
+
+                    productId:
+                        stockContext.productId,
+
+                    batchId:
+                        stockContext.batchId,
+
+                    availableQuantity:
+                        expectedAfterDecrease,
+
+                    requestedQuantity:
+                        overdrawQuantity,
+
+                    httpStatus:
+                        overdrawResponse.status,
+
+                    response:
+                        overdrawResponse.body
+                },
+
+                "Insufficient-stock ADJUSTMENT DECREASE was not rejected."
+            );
+        }
+
+
+        // --------------------------------------
+        // FINAL CONTROLLED DECREASE
+        // --------------------------------------
+        // This confirms the rejected overdraw
+        // did not mutate the stock quantity.
+
+        const finalDecreaseResponse =
+            await safeFetch(
+                `${baseUrl}/api/stock-movements`,
+                {
+                    method:
+                        "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body:
+                        JSON.stringify({
+                            productId:
+                                stockContext.productId,
+
+                            batchId:
+                                stockContext.batchId,
+
+                            type:
+                                "ADJUSTMENT",
+
+                            quantity:
+                                expectedAfterDecrease,
+
+                            adjustmentDirection:
+                                "DECREASE",
+
+                            reference:
+                                createProbeReference(
+                                    "ADJUSTMENT-FINAL-DECREASE-PROBE"
+                                ),
+
+                            notes:
+                                "Diagnostic final adjustment state verification."
+                        })
+                }
+            );
+
+
+        const finalPassed =
+            finalDecreaseResponse.status === 201 &&
+            finalDecreaseResponse.body?.success === true &&
+            finalDecreaseResponse.body?.movement?.previousQuantity ===
+                expectedAfterDecrease &&
+            finalDecreaseResponse.body?.movement?.newQuantity ===
+                0;
+
+
+        if (!finalPassed) {
+
+            return createFailedResult(
+                {
+                    stage:
+                        "FINAL-STATE",
+
+                    productId:
+                        stockContext.productId,
+
+                    batchId:
+                        stockContext.batchId,
+
+                    expectedPreviousQuantity:
+                        expectedAfterDecrease,
+
+                    expectedFinalQuantity:
+                        0,
+
+                    httpStatus:
+                        finalDecreaseResponse.status,
+
+                    response:
+                        finalDecreaseResponse.body
+                },
+
+                "Final stock state did not prove that rejected adjustments left stock unchanged."
+            );
+        }
+
+
+        // --------------------------------------
+        // PASS
+        // --------------------------------------
+
+        return createPassedResult(
+            {
+                productId:
+                    stockContext.productId,
+
+                batchId:
+                    stockContext.batchId,
+
+                initialQuantity,
+
+                increase:
+                    increaseResponse.body?.movement,
+
+                decrease:
+                    decreaseResponse.body?.movement,
+
+                invalidDirection:
+                    invalidResponse.body,
+
+                overdraw:
+                    overdrawResponse.body,
+
+                finalDecrease:
+                    finalDecreaseResponse.body?.movement
+            },
+
+            "Controlled stock adjustments correctly enforce INCREASE and DECREASE directions, reject invalid directions, prevent insufficient-stock decreases, and preserve stock after rejected requests."
+        );
+    }
+};
+
 // ==========================================
 // Runtime Probe Collection
 // ==========================================
@@ -1182,7 +1679,9 @@ export const RUNTIME_PROBES = [
 
     negativeQuantityRejectedProbe,
 
-    zeroQuantityRejectedProbe
+    zeroQuantityRejectedProbe,
+
+    controlledAdjustmentProbe
 ];
 
 

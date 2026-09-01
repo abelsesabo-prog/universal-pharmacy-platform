@@ -13,7 +13,7 @@
       }
     },
     "details": "Invalid product ID was rejected before batch creation.",
-    "recordedAt": "2026-08-30T16:28:40.649Z"
+    "recordedAt": "2026-09-01T09:25:56.084Z"
   },
   {
     "capabilityId": "batch.product-linkage",
@@ -30,7 +30,7 @@
       }
     },
     "details": "Batch creation was rejected when the referenced product did not exist.",
-    "recordedAt": "2026-08-30T16:28:40.826Z"
+    "recordedAt": "2026-09-01T09:25:56.270Z"
   },
   {
     "capabilityId": "batch.product-linkage",
@@ -39,29 +39,29 @@
     "verified": true,
     "source": "runtime-probe-runner",
     "evidence": {
-      "productId": "6a945a38d67d817d2223e464",
-      "batchId": "6a945a39d67d817d2223e465",
-      "storedProductId": "6a945a38d67d817d2223e464",
-      "batchNumber": "DIAGNOSTIC-BATCH-1788107321138-YZFSIS",
+      "productId": "6a969a24328ab2254700c8e0",
+      "batchId": "6a969a24328ab2254700c8e1",
+      "storedProductId": "6a969a24328ab2254700c8e0",
+      "batchNumber": "DIAGNOSTIC-BATCH-1788254756612-17KTXV",
       "httpStatus": 201,
       "response": {
         "success": true,
         "batch": {
-          "productId": "6a945a38d67d817d2223e464",
-          "batchNumber": "DIAGNOSTIC-BATCH-1788107321138-YZFSIS",
+          "productId": "6a969a24328ab2254700c8e0",
+          "batchNumber": "DIAGNOSTIC-BATCH-1788254756612-17KTXV",
           "quantity": 5,
           "expiryDate": "2035-12-31T00:00:00.000Z",
           "costPrice": 100,
           "sellingPrice": 150,
           "location": "DIAGNOSTIC-INTEGRITY",
-          "createdAt": "2026-08-30T16:28:41.253Z",
-          "updatedAt": "2026-08-30T16:28:41.253Z",
-          "_id": "6a945a39d67d817d2223e465"
+          "createdAt": "2026-09-01T09:25:56.775Z",
+          "updatedAt": "2026-09-01T09:25:56.775Z",
+          "_id": "6a969a24328ab2254700c8e1"
         }
       }
     },
     "details": "Created batch preserved the exact product linkage.",
-    "recordedAt": "2026-08-30T16:28:41.556Z"
+    "recordedAt": "2026-09-01T09:25:57.141Z"
   },
   {
     "capabilityId": "inventory.stock-protection.oversale",
@@ -70,8 +70,8 @@
     "verified": true,
     "source": "runtime-probe-runner",
     "evidence": {
-      "productId": "6a945a39d67d817d2223e466",
-      "batchId": "6a945a3ad67d817d2223e467",
+      "productId": "6a969a25328ab2254700c8e2",
+      "batchId": "6a969a25328ab2254700c8e3",
       "availableQuantity": 5,
       "requestedQuantity": 6,
       "httpStatus": 400,
@@ -81,7 +81,7 @@
       }
     },
     "details": "Oversale request against a real controlled batch was rejected.",
-    "recordedAt": "2026-08-30T16:28:42.404Z"
+    "recordedAt": "2026-09-01T09:25:58.261Z"
   },
   {
     "capabilityId": "inventory.stock-protection.oversale",
@@ -90,8 +90,8 @@
     "verified": true,
     "source": "runtime-probe-runner",
     "evidence": {
-      "productId": "6a945a3ad67d817d2223e468",
-      "batchId": "6a945a3bd67d817d2223e469",
+      "productId": "6a969a26328ab2254700c8e4",
+      "batchId": "6a969a27328ab2254700c8e5",
       "availableQuantity": 5,
       "requestedQuantity": 105,
       "httpStatus": 400,
@@ -101,7 +101,7 @@
       }
     },
     "details": "Runtime system prevented stock from becoming negative.",
-    "recordedAt": "2026-08-30T16:28:43.290Z"
+    "recordedAt": "2026-09-01T09:25:59.480Z"
   },
   {
     "capabilityId": "inventory.stock-protection.quantity",
@@ -117,7 +117,7 @@
       }
     },
     "details": "Negative movement quantity was rejected.",
-    "recordedAt": "2026-08-30T16:28:43.301Z"
+    "recordedAt": "2026-09-01T09:25:59.522Z"
   },
   {
     "capabilityId": "inventory.stock-protection.quantity",
@@ -133,7 +133,7 @@
       }
     },
     "details": "Zero movement quantity was rejected.",
-    "recordedAt": "2026-08-30T16:28:43.313Z"
+    "recordedAt": "2026-09-01T09:25:59.538Z"
   },
   {
     "capabilityId": "inventory.stock-movement.adjustment",
@@ -320,5 +320,69 @@
     },
     "details": "Controlled runtime batch location test proved that the location value was preserved during batch creation and remained intact when the batch was fetched again.",
     "recordedAt": "2026-08-30T17:36:04.837Z"
+  },
+  {
+    "capabilityId": "inventory.stock-adjustment.controlled",
+    "assertion": "controlled-adjustment-directions-enforced",
+    "status": "PASSED",
+    "verified": true,
+    "source": "runtime-probe-runner",
+    "evidence": {
+      "productId": "6a969a27328ab2254700c8e6",
+      "batchId": "6a969a28328ab2254700c8e7",
+      "initialQuantity": 5,
+      "increase": {
+        "productId": "6a969a27328ab2254700c8e6",
+        "batchId": "6a969a28328ab2254700c8e7",
+        "type": "ADJUSTMENT",
+        "quantity": 2,
+        "adjustmentDirection": "INCREASE",
+        "reference": "ADJUSTMENT-INCREASE-PROBE-1788254760365-7AUBXD",
+        "notes": "Diagnostic controlled adjustment increase probe.",
+        "createdAt": "2026-09-01T09:26:00.689Z",
+        "_id": "6a969a28328ab2254700c8e8",
+        "previousQuantity": 5,
+        "newQuantity": 7,
+        "quantityChange": 2
+      },
+      "decrease": {
+        "productId": "6a969a27328ab2254700c8e6",
+        "batchId": "6a969a28328ab2254700c8e7",
+        "type": "ADJUSTMENT",
+        "quantity": 2,
+        "adjustmentDirection": "DECREASE",
+        "reference": "ADJUSTMENT-DECREASE-PROBE-1788254760857-8GDVKY",
+        "notes": "Diagnostic controlled adjustment decrease probe.",
+        "createdAt": "2026-09-01T09:26:01.290Z",
+        "_id": "6a969a29328ab2254700c8e9",
+        "previousQuantity": 7,
+        "newQuantity": 5,
+        "quantityChange": -2
+      },
+      "invalidDirection": {
+        "success": false,
+        "error": "ADJUSTMENT movements require adjustmentDirection to be INCREASE or DECREASE."
+      },
+      "overdraw": {
+        "success": false,
+        "error": "Insufficient stock. Current batch quantity is 5."
+      },
+      "finalDecrease": {
+        "productId": "6a969a27328ab2254700c8e6",
+        "batchId": "6a969a28328ab2254700c8e7",
+        "type": "ADJUSTMENT",
+        "quantity": 5,
+        "adjustmentDirection": "DECREASE",
+        "reference": "ADJUSTMENT-FINAL-DECREASE-PROBE-1788254761633-8ML0YI",
+        "notes": "Diagnostic final adjustment state verification.",
+        "createdAt": "2026-09-01T09:26:01.993Z",
+        "_id": "6a969a29328ab2254700c8ea",
+        "previousQuantity": 5,
+        "newQuantity": 0,
+        "quantityChange": -5
+      }
+    },
+    "details": "Controlled stock adjustments correctly enforce INCREASE and DECREASE directions, reject invalid directions, prevent insufficient-stock decreases, and preserve stock after rejected requests.",
+    "recordedAt": "2026-09-01T09:26:02.143Z"
   }
 ]
