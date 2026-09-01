@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Pharmacy Platform — UOM POS</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            color: #1f2937;
+        }
+        header {
+            background: #1e40af;
+            color: #fff;
+            padding: 20px;
+        }
+        main {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,.08);
+        }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 700;
+        }
+        input, select, button {
+            width: 100%;
+            padding: 11px;
+            font-size: 15px;
+            border-radius: 6px;
+        }
+        input, select {
+            border: 1px solid #cbd5e1;
+            background: #fff;
+        }
+        button {
+            border: 0;
+            background: #2563eb;
+            color: #fff;
+            cursor: pointer;
+            font-weight: 700;
+        }
+        button:disabled {
+            opacity: .55;
+            cursor: not-allowed;
+        }
+        .field { margin-bottom: 14px; }
+        .metric {
+            padding: 14px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            background: #f8fafc;
+        }
+        .metric strong { display: block; font-size: 20px; margin-top: 4px; }
+        .success { color: #166534; }
+        .error { color: #991b1b; }
+        .muted { color: #64748b; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 10px;
+            border-bottom: 1px solid #e5e7eb;
+            text-align: left;
+        }
+        th { background: #f8fafc; }
+        code {
+            background: #eef2ff;
+            padding: 2px 5px;
+            border-radius: 4px;
+        }
+        @media (max-width: 600px) {
+            main { padding: 12px; }
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>Universal Pharmacy Platform — UOM POS</h1>
+    <div id="status">Connecting to backend...</div>
+</header>
+<main>
+    <div class="grid">
+        <section class="card">
+            <h2>Sell Item</h2>
+
+            <div class="field">
+                <label for="product">Product</label>
+                <select id="product">
+                    <option value="">Loading products...</option>
+                </select>
+            </div>
+
+            <div class="field">
+                <label for="batch">Batch</label>
+                <select id="batch" disabled>
+                    <option value="">Select product first</option>
+                </select>
+            </div>
+
+            <div class="field">
+                <label for="uom">Selling unit</label>
+                <select id="uom" disabled>
+                    <option value="">Select product first</option>
+                </select>
+            </div>
+
+            <div class="field">
+                <label for="quantity">Quantity</label>
+                <input id="quantity" type="number" min="0.000001" step="0.000001" value="1">
+            </div>
+
+            <button id="sellButton" disabled>Complete Sale</button>
+            <p id="message" class="muted"></p>
+        </section>
+
+        <section class="card">
+            <h2>Sale Intelligence</h2>
+            <div class="metric">
+                Selling UOM
+                <strong id="selectedUom">—</strong>
+            </div>
+            <div class="metric">
+                UOM price
+                <strong id="uomPrice">—</strong>
+            </div>
+            <div class="metric">
+                Base-unit conversion
+                <strong id="conversion">—</strong>
+            </div>
+            <div class="metric">
+                Stock consumed
+                <strong id="baseQuantity">—</strong>
+            </div>
+            <div class="metric">
+                Line total
+                <strong id="lineTotal">—</strong>
+            </div>
+        </section>
+    </div>
+
+    <section class="card" style="margin-top:20px;">
+        <h2>Business Rule</h2>
+        <p class="muted">
+            Inventory is stored in the canonical base unit. Each selling UOM can have
+            its own price, so a box may be cheaper than the sum of its pieces.
+        </p>
+        <p>
+            Example: <code>1 piece = TZS 250</code>,
+            <code>1 pair = 2 pieces = TZS 500</code>,
+            <code>1 box = 100 pieces = TZS 10,000</code>.
+        </p>
+    </section>
+
+    <section class="card" style="margin-top:20px;">
+        <h2>Recent Transaction</h2>
+        <div id="transactionOutput" class="muted">No transaction completed yet.</div>
+    </section>
+</main>
+
+<script>
+const productSelect = document.getElementById("product");
+const batchSelect = document.getElementById("batch");
+const uomSelect = document.getElementById("uom");
+const quantityInput = document.getElementById("quantity");
+const sellButton = document.getElementById("sellButton");
+const statusElement = document.getElementById("status");
+const messageElement = document.getElementById("message");
+const selectedUomElement = document.getElementById("selectedUom");
+const uomPriceElement = document.getElementById("uomPrice");
+const conversionElement = document.getElementById("conversion");
+const baseQuantityElement = document.getElementById("baseQuantity");
+const lineTotalElement = document.getElementById("lineTotal");
+const transactionOutput = document.getElementById("transactionOutput");
+
+let products = [];
+let batches = [];
+let currentProduct = null;
+
+function money(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return "—";
+    return new Intl.NumberFormat("en-TZ", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
+    }).format(number) + " TZS";
+}
+
+function normalizedMatrix(product) {
+    const matrix = product?.uomMatrix;
+    if (!matrix) return [];
+    if (Array.isArray(matrix)) return matrix;
+    if (typeof matrix === "object") {
+        return Object.entries(matrix).map(([unit, value]) => ({
+            unit,
+            ...(value && typeof value === "object"
+                ? value
+                : { conversionToBase: value })
+        }));
+    }
+    return [];
+}
+
+function uomEntry(product, unit) {
+    const baseUnit = String(product?.baseUnit || "piece").trim().toLowerCase();
+    const normalized = normalizedMatrix(product);
+    if (!normalized.length) {
+        return {
+            unit: baseUnit,
+            conversionToBase: 1,
+            sellingPrice: null
+        };
+    }
+    return normalized.find(entry =>
+        String(entry.unit || entry.uom || entry.name || "").trim().toLowerCase() === unit
+    ) || null;
+}
+
+function currentBatch() {
+    return batches.find(batch => String(batch._id) === batchSelect.value) || null;
+}
+
+function refreshPreview() {
+    const unit = uomSelect.value;
+    const quantity = Number(quantityInput.value);
+    const entry = currentProduct ? uomEntry(currentProduct, unit) : null;
+
+    if (!entry || !Number.isFinite(quantity) || quantity <= 0) {
+        selectedUomElement.textContent = "—";
+        uomPriceElement.textContent = "—";
+        conversionElement.textContent = "—";
+        baseQuantityElement.textContent = "—";
+        lineTotalElement.textContent = "—";
+        sellButton.disabled = true;
+        return;
+    }
+
+    const price = Number(entry.sellingPrice ?? entry.price);
+    const conversion = Number(
+        entry.conversionToBase ??
+        entry.conversion ??
+        entry.factor ??
+        entry.multiplier
+    );
+
+    selectedUomElement.textContent = entry.unit || unit;
+    uomPriceElement.textContent = Number.isFinite(price) ? money(price) : "Configured by server";
+    conversionElement.textContent = Number.isFinite(conversion) ? String(conversion) + " base units" : "—";
+    baseQuantityElement.textContent = Number.isFinite(conversion)
+        ? String(quantity * conversion)
+        : "—";
+    lineTotalElement.textContent = Number.isFinite(price)
+        ? money(quantity * price)
+        : "—";
+    sellButton.disabled = !currentProduct || !batchSelect.value || !uomSelect.value;
+}
+
+async function loadProducts() {
+    const response = await fetch("/api/products");
+    const data = await response.json();
+    if (!data.success) throw new Error(data.error || "Failed to load products.");
+    products = data.products || [];
+
+    productSelect.innerHTML = '<option value="">Select product</option>';
+    for (const product of products) {
+        const option = document.createElement("option");
+        option.value = product._id;
+        option.textContent = [product.brandName, product.genericName]
+            .filter(Boolean)
+            .join(" — ");
+        productSelect.appendChild(option);
+    }
+}
+
+async function loadBatches(productId) {
+    batchSelect.disabled = true;
+    batchSelect.innerHTML = '<option value="">Loading batches...</option>';
+    const response = await fetch(`/api/batches?productId=${encodeURIComponent(productId)}`);
+    const data = await response.json();
+    if (!data.success) throw new Error(data.error || "Failed to load batches.");
+    batches = data.batches || [];
+    batchSelect.innerHTML = '<option value="">Select batch</option>';
+    for (const batch of batches) {
+        const option = document.createElement("option");
+        option.value = batch._id;
+        option.textContent = `${batch.batchNumber} | Stock: ${batch.quantity} | Exp: ${batch.expiryDate ? new Date(batch.expiryDate).toLocaleDateString() : "—"}`;
+        batchSelect.appendChild(option);
+    }
+    batchSelect.disabled = batches.length === 0;
+}
+
+function loadUoms(product) {
+    const matrix = normalizedMatrix(product);
+    const baseUnit = String(product?.baseUnit || "piece").trim().toLowerCase();
+    const entries = matrix.length ? matrix : [{ unit: baseUnit, conversionToBase: 1 }];
+
+    uomSelect.innerHTML = "";
+    for (const entry of entries) {
+        const unit = String(entry.unit || entry.uom || entry.name || "").trim().toLowerCase();
+        if (!unit || entry.enabled === false || entry.active === false) continue;
+        const option = document.createElement("option");
+        option.value = unit;
+        option.textContent = unit.charAt(0).toUpperCase() + unit.slice(1);
+        uomSelect.appendChild(option);
+    }
+    uomSelect.disabled = uomSelect.options.length === 0;
+    refreshPreview();
+}
+
+productSelect.addEventListener("change", async () => {
+    messageElement.textContent = "";
+    currentProduct = products.find(product => String(product._id) === productSelect.value) || null;
+    batchSelect.innerHTML = '<option value="">Select product first</option>';
+    batchSelect.disabled = true;
+    if (!currentProduct) {
+        uomSelect.innerHTML = '<option value="">Select product first</option>';
+        uomSelect.disabled = true;
+        refreshPreview();
+        return;
+    }
+
+    loadUoms(currentProduct);
+    try {
+        await loadBatches(currentProduct._id);
+    } catch (error) {
+        messageElement.textContent = error.message;
+        messageElement.className = "error";
+    }
+    refreshPreview();
+});
+
+uomSelect.addEventListener("change", refreshPreview);
+quantityInput.addEventListener("input", refreshPreview);
+batchSelect.addEventListener("change", refreshPreview);
+
+sellButton.addEventListener("click", async () => {
+    if (!currentProduct || !batchSelect.value || !uomSelect.value) return;
+
+    sellButton.disabled = true;
+    messageElement.className = "muted";
+    messageElement.textContent = "Completing sale...";
+
+    try {
+        const response = await fetch("/api/transactions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                type: "SALE",
+                items: [{
+                    productId: currentProduct._id,
+                    batchId: batchSelect.value,
+                    quantity: Number(quantityInput.value),
+                    uom: uomSelect.value
+                }],
+                paymentMethod: "CASH",
+                reference: `UOM-POS-${Date.now()}`
+            })
+        });
+
+        const data = await response.json();
+        if (!data.success) {
+            throw new Error(data.error || "Sale failed.");
+        }
+
+        const transaction = data.transaction;
+        messageElement.className = "success";
+        messageElement.textContent = "Sale completed successfully.";
+        transactionOutput.innerHTML = `
+            <strong>Transaction:</strong> ${transaction._id}<br>
+            <strong>Total:</strong> ${money(transaction.totalAmount)}<br>
+            <strong>Items:</strong> ${transaction.items.map(item =>
+                `${item.quantity} ${item.uom} → ${item.baseQuantity} base units @ ${money(item.unitPrice)}`
+            ).join("; ")}
+        `;
+
+        await loadBatches(currentProduct._id);
+        refreshPreview();
+    } catch (error) {
+        messageElement.className = "error";
+        messageElement.textContent = error.message;
+        refreshPreview();
+    }
+});
+
+(async function init() {
+    try {
+        const healthResponse = await fetch("/api/health");
+        const health = await healthResponse.json();
+        if (!health.success) throw new Error("Backend health check failed.");
+        await loadProducts();
+        statusElement.textContent = "Backend connected. UOM POS ready.";
+    } catch (error) {
+        statusElement.textContent = "Backend unavailable: " + error.message;
+        statusElement.className = "error";
+    }
+})();
+</script>
+</body>
+</html>
