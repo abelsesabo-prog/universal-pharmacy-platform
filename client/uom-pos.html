@@ -9,9 +9,26 @@
         body { margin: 0; font-family: Arial, sans-serif; background: #f4f6f8; color: #1f2937; }
         header { background: #1e40af; color: #fff; padding: 20px; }
         header a { color: #fff; margin-left: 16px; }
-        main { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+        main { max-width: 1280px; margin: 0 auto; padding: 20px; }
+
+        /* Master-plan POS shell: fast-entry left, persistent cart right. */
+        .pos-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr);
+            gap: 20px;
+            align-items: start;
+        }
+
+        .left-stack,
+        .right-stack {
+            min-width: 0;
+        }
+
         .card { background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+        .left-stack > .card + .card,
+        .right-stack > .card + .card { margin-top: 16px; }
+        .cart-card { position: sticky; top: 16px; }
+
         label { display: block; margin-bottom: 6px; font-weight: 700; }
         input, select, button { width: 100%; padding: 11px; font-size: 15px; border-radius: 6px; }
         input, select { border: 1px solid #cbd5e1; background: #fff; }
@@ -21,18 +38,36 @@
         button:disabled { opacity: .55; cursor: not-allowed; }
         .field { margin-bottom: 14px; }
         .metric { padding: 14px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 10px; background: #f8fafc; }
+        .metric:last-child { margin-bottom: 0; }
         .metric strong { display: block; font-size: 20px; margin-top: 4px; }
         .success { color: #166534; }
         .error { color: #991b1b; }
         .muted { color: #64748b; }
         .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 15px; }
         .toolbar button { width: auto; }
+        .cart-toolbar { margin-top: 15px; margin-bottom: 0; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top; }
         th { background: #f8fafc; }
         .right { text-align: right; }
         code { background: #eef2ff; padding: 2px 5px; border-radius: 4px; }
-        @media (max-width: 700px) { main { padding: 12px; } .toolbar { flex-direction: column; align-items: stretch; } .toolbar button { width: 100%; } table { font-size: 14px; } }
+        .cart-scroll { overflow-x: auto; }
+        .cart-scroll table { min-width: 760px; }
+        .cart-summary { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid #e2e8f0; align-items: center; }
+        .cart-summary strong { font-size: 22px; }
+        .section-kicker { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: #64748b; margin-bottom: 6px; }
+
+        @media (max-width: 900px) {
+            .pos-layout { grid-template-columns: 1fr; }
+            .cart-card { position: static; }
+        }
+
+        @media (max-width: 700px) {
+            main { padding: 12px; }
+            .toolbar { flex-direction: column; align-items: stretch; }
+            .toolbar button { width: 100%; }
+            .cart-scroll table { min-width: 700px; }
+        }
     </style>
 </head>
 <body>
@@ -43,84 +78,103 @@
         <a href="/uom-product.html">UOM Product Setup</a>
     </div>
 </header>
+
 <main>
-    <div class="grid">
-        <section class="card">
-            <h2>Add Item</h2>
-            <div class="field">
-                <label for="product">Product</label>
-                <select id="product"><option value="">Loading products...</option></select>
-            </div>
-            <div class="field">
-                <label for="batch">Batch</label>
-                <select id="batch" disabled><option value="">Select product first</option></select>
-            </div>
-            <div class="field">
-                <label for="uom">Selling unit</label>
-                <select id="uom" disabled><option value="">Select product first</option></select>
-            </div>
-            <div class="field">
-                <label for="quantity">Quantity</label>
-                <input id="quantity" type="number" min="0.000001" step="0.000001" value="1">
-            </div>
-            <div class="toolbar">
-                <button id="addButton" disabled>Add to Cart</button>
-                <button id="clearButton" class="secondary" type="button">Clear Selection</button>
-            </div>
-            <p id="message" class="muted"></p>
-        </section>
+    <div class="pos-layout">
+        <div class="left-stack">
+            <section class="card">
+                <div class="section-kicker">Fast entry</div>
+                <h2>Add Item</h2>
 
-        <section class="card">
-            <h2>Sale Intelligence</h2>
-            <div class="metric">Selling UOM<strong id="selectedUom">—</strong></div>
-            <div class="metric">UOM price<strong id="uomPrice">—</strong></div>
-            <div class="metric">Base-unit conversion<strong id="conversion">—</strong></div>
-            <div class="metric">Stock consumed<strong id="baseQuantity">—</strong></div>
-            <div class="metric">Line total<strong id="lineTotal">—</strong></div>
-            <div class="metric">Batch stock<strong id="batchStock">—</strong></div>
-        </section>
-    </div>
+                <div class="field">
+                    <label for="product">Product</label>
+                    <select id="product"><option value="">Loading products...</option></select>
+                </div>
 
-    <section class="card" style="margin-top:20px;">
-        <h2>Cart</h2>
-        <div id="cartEmpty" class="muted">No items in cart.</div>
-        <table id="cartTable" hidden>
-            <thead>
-                <tr>
-                    <th>Product</th>
-                    <th>Batch</th>
-                    <th>UOM</th>
-                    <th>Qty</th>
-                    <th>Base Qty</th>
-                    <th>Unit Price</th>
-                    <th>Total</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody id="cartBody"></tbody>
-            <tfoot>
-                <tr>
-                    <th colspan="6" class="right">Grand Total</th>
-                    <th id="cartTotal">0 TZS</th>
-                    <th></th>
-                </tr>
-            </tfoot>
-        </table>
-        <div class="toolbar" style="margin-top:15px;">
-            <button id="checkoutButton" disabled>Complete Cart Sale</button>
+                <div class="field">
+                    <label for="batch">Batch</label>
+                    <select id="batch" disabled><option value="">Select product first</option></select>
+                </div>
+
+                <div class="field">
+                    <label for="uom">Selling unit</label>
+                    <select id="uom" disabled><option value="">Select product first</option></select>
+                </div>
+
+                <div class="field">
+                    <label for="quantity">Quantity</label>
+                    <input id="quantity" type="number" min="0.000001" step="0.000001" value="1">
+                </div>
+
+                <div class="toolbar">
+                    <button id="addButton" disabled>Add to Cart</button>
+                    <button id="clearButton" class="secondary" type="button">Clear Selection</button>
+                </div>
+
+                <p id="message" class="muted"></p>
+            </section>
+
+            <section class="card">
+                <div class="section-kicker">Live calculation</div>
+                <h2>Sale Intelligence</h2>
+                <div class="metric">Selling UOM<strong id="selectedUom">—</strong></div>
+                <div class="metric">UOM price<strong id="uomPrice">—</strong></div>
+                <div class="metric">Base-unit conversion<strong id="conversion">—</strong></div>
+                <div class="metric">Stock consumed<strong id="baseQuantity">—</strong></div>
+                <div class="metric">Line total<strong id="lineTotal">—</strong></div>
+                <div class="metric">Batch stock<strong id="batchStock">—</strong></div>
+            </section>
+
+            <section class="card">
+                <div class="section-kicker">Business rule</div>
+                <h2>UOM Rule</h2>
+                <p class="muted">Inventory remains in the canonical base unit. Each selling UOM can carry an independent selling price.</p>
+                <p>Example: <code>1 piece = TZS 250</code>, <code>1 pair = 2 pieces = TZS 500</code>, <code>1 box = 100 pieces = TZS 10,000</code>.</p>
+            </section>
         </div>
-    </section>
 
-    <section class="card" style="margin-top:20px;">
-        <h2>Business Rule</h2>
-        <p class="muted">Inventory remains in the canonical base unit. Each selling UOM can carry an independent selling price.</p>
-        <p>Example: <code>1 piece = TZS 250</code>, <code>1 pair = 2 pieces = TZS 500</code>, <code>1 box = 100 pieces = TZS 10,000</code>.</p>
-    </section>
+        <div class="right-stack">
+            <section class="card cart-card">
+                <div class="section-kicker">Transaction workspace</div>
+                <h2>Cart</h2>
 
-    <section class="card" style="margin-top:20px;">
-        <h2>Recent Transaction</h2>
-        <div id="transactionOutput" class="muted">No transaction completed yet.</div>
-    </section>
+                <div id="cartEmpty" class="muted">No items in cart.</div>
+
+                <div id="cartScroll" class="cart-scroll">
+                    <table id="cartTable" hidden>
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Batch</th>
+                                <th>UOM</th>
+                                <th>Qty</th>
+                                <th>Base Qty</th>
+                                <th>Unit Price</th>
+                                <th>Total</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="cartBody"></tbody>
+                    </table>
+                </div>
+
+                <div class="cart-summary">
+                    <span>Grand Total</span>
+                    <strong id="cartTotal">0 TZS</strong>
+                </div>
+
+                <div class="toolbar cart-toolbar">
+                    <button id="checkoutButton" disabled>Complete Cart Sale</button>
+                </div>
+            </section>
+
+            <section class="card">
+                <div class="section-kicker">Post-sale</div>
+                <h2>Recent Transaction</h2>
+                <div id="transactionOutput" class="muted">No transaction completed yet.</div>
+            </section>
+        </div>
+    </div>
 </main>
 
 <script>
