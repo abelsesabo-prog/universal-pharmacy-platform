@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Universal Pharmacy Platform — POS Workspace</title>
+<style>
+*{box-sizing:border-box}
+:root{--bg:#eef2f7;--panel:#fff;--line:#d9e2ec;--ink:#162235;--muted:#62748a;--brand:#173ea5;--accent:#2563eb;--danger:#b91c1c;--success:#166534}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Arial,Helvetica,sans-serif}
+header{background:linear-gradient(120deg,#173ea5,#2854c7);color:#fff;padding:16px 22px;position:sticky;top:0;z-index:10;box-shadow:0 3px 14px rgba(0,0,0,.12)}
+.header-row{display:flex;gap:18px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+h1{margin:0;font-size:25px} .status{font-size:14px;opacity:.92;margin-top:4px}
+nav{display:flex;gap:8px;flex-wrap:wrap}nav a{color:#fff;text-decoration:none;padding:9px 12px;border:1px solid rgba(255,255,255,.35);border-radius:7px;background:rgba(255,255,255,.08);font-weight:700;font-size:13px}
+main{max-width:1500px;margin:0 auto;padding:18px}.workspace{display:grid;grid-template-columns:minmax(280px,1fr) minmax(280px,.85fr) minmax(420px,1.35fr);gap:16px;align-items:start}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:0 3px 12px rgba(25,45,75,.06)}
+.card.sticky{position:sticky;top:94px;max-height:calc(100vh - 112px);overflow:auto}
+.eyebrow{color:var(--muted);font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px}.title{font-size:21px;font-weight:800;margin-bottom:14px}
+.field{margin-bottom:12px}label{display:block;font-weight:700;font-size:13px;margin-bottom:6px}select,input,button{width:100%;min-height:42px;padding:10px 11px;border-radius:7px;font-size:14px}select,input{border:1px solid #c8d4e2;background:#fff;color:var(--ink)}button{border:0;background:var(--accent);color:#fff;font-weight:800;cursor:pointer}button.secondary{background:#465a72}button.danger{background:var(--danger)}button:disabled{opacity:.5;cursor:not-allowed}
+.inline{display:grid;grid-template-columns:1fr 1fr;gap:8px}.hint{font-size:12px;color:var(--muted);margin-top:5px}.message{min-height:20px;margin:9px 0 0;font-size:13px}.success{color:var(--success)}.error{color:#991b1b}
+.metrics{display:grid;gap:9px}.metric{border:1px solid var(--line);border-radius:9px;padding:11px;background:#f8fafc}.metric span{display:block;font-size:12px;color:var(--muted)}.metric strong{display:block;margin-top:4px;font-size:19px}
+.rule{margin-top:14px;padding:11px 12px;background:#f8fafc;border:1px solid var(--line);border-radius:9px;font-size:12px;line-height:1.5}.rule code{background:#e8edff;padding:2px 4px;border-radius:4px}
+.cart-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.cart-count{background:#e8edff;color:#173ea5;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:800}
+.cart-list{display:grid;gap:9px;margin:10px 0}.cart-item{border:1px solid var(--line);border-radius:9px;padding:11px}.cart-item-top{display:flex;justify-content:space-between;gap:10px;font-weight:800}.cart-meta{color:var(--muted);font-size:12px;margin-top:4px;line-height:1.45}.cart-price{font-weight:800;margin-top:5px}.remove{width:auto;min-height:34px;padding:7px 10px;margin-top:8px}
+.total-box{border-top:2px solid var(--line);margin-top:12px;padding-top:12px}.total-row{display:flex;justify-content:space-between;align-items:center;font-size:16px}.grand{font-size:26px;font-weight:900}.checkout{margin-top:12px}.recent{margin-top:16px}.recent strong{font-size:13px}.recent div{font-size:12px;line-height:1.5;margin-top:5px}
+@media(max-width:1100px){.workspace{grid-template-columns:1fr 1fr}.card.sticky{position:relative;top:auto}.cart-card{grid-column:1/-1}}
+@media(max-width:720px){main{padding:10px}.workspace{grid-template-columns:1fr}.cart-card{grid-column:auto}header{padding:14px}.header-row{align-items:flex-start}h1{font-size:20px}.inline{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+<div class="header-row">
+<div><h1>Universal Pharmacy Platform — POS</h1><div id="status" class="status">Connecting to backend...</div></div>
+<nav>
+<a href="/">Inventory</a><a href="/uom-product.html">Product Setup</a><a href="/uom-pos.html">UOM POS</a>
+</nav>
+</div>
+</header>
+<main>
+<div class="workspace">
+<section class="card">
+<div class="eyebrow">Fast Entry</div><div class="title">Add Item</div>
+<div class="field"><label for="product">Product</label><select id="product"><option value="">Loading products...</option></select></div>
+<div class="field"><label for="batch">Batch</label><select id="batch" disabled><option value="">Select product first</option></select></div>
+<div class="field"><label for="uom">Selling unit</label><select id="uom" disabled><option value="">Select product first</option></select></div>
+<div class="field"><label for="quantity">Quantity</label><input id="quantity" type="number" min="0.000001" step="0.000001" value="1"></div>
+<div class="inline"><button id="addButton" disabled>Add to Cart</button><button id="clearButton" class="secondary" type="button">Clear</button></div>
+<div id="message" class="message muted"></div>
+<div class="rule"><strong>Cashier flow:</strong> choose product → batch → selling unit → quantity → add. Nothing in the cart is committed until <strong>Complete Sale</strong>.</div>
+</section>
+
+<section class="card">
+<div class="eyebrow">Live Calculation</div><div class="title">Sale Intelligence</div>
+<div class="metrics">
+<div class="metric"><span>Selling UOM</span><strong id="selectedUom">—</strong></div>
+<div class="metric"><span>UOM price</span><strong id="uomPrice">—</strong></div>
+<div class="metric"><span>Base-unit conversion</span><strong id="conversion">—</strong></div>
+<div class="metric"><span>Stock consumed</span><strong id="baseQuantity">—</strong></div>
+<div class="metric"><span>Line total</span><strong id="lineTotal">—</strong></div>
+<div class="metric"><span>Batch stock</span><strong id="batchStock">—</strong></div>
+</div>
+<div class="rule">Example: <code>1 piece = TZS 250</code>, <code>1 pair = 2 pieces = TZS 500</code>, <code>1 box = 100 pieces = TZS 10,000</code>.</div>
+</section>
+
+<section class="card sticky cart-card">
+<div class="cart-head"><div><div class="eyebrow">Transaction Workspace</div><div class="title" style="margin-bottom:0">Cart</div></div><div id="cartCount" class="cart-count">0 lines</div></div>
+<div id="cartList" class="cart-list"><div class="hint">No items in cart.</div></div>
+<div class="total-box"><div class="total-row"><span>Grand Total</span><strong id="cartTotal" class="grand">0 TZS</strong></div><button id="checkoutButton" class="checkout" disabled>Complete Sale</button></div>
+<div class="recent"><div class="eyebrow">Post-Sale</div><strong>Recent transaction</strong><div id="transactionOutput" class="hint">No transaction completed yet.</div></div>
+</section>
+</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const productSelect=$("product"),batchSelect=$("batch"),uomSelect=$("uom"),quantityInput=$("quantity"),addButton=$("addButton"),clearButton=$("clearButton"),checkoutButton=$("checkoutButton");
+const statusElement=$("status"),messageElement=$("message"),cartList=$("cartList"),cartCount=$("cartCount"),cartTotalElement=$("cartTotal"),transactionOutput=$("transactionOutput");
+const selectedUomElement=$("selectedUom"),uomPriceElement=$("uomPrice"),conversionElement=$("conversion"),baseQuantityElement=$("baseQuantity"),lineTotalElement=$("lineTotal"),batchStockElement=$("batchStock");
+let products=[],batches=[],currentProduct=null,cart=[];
+function money(v){const n=Number(v);if(!Number.isFinite(n))return"—";return new Intl.NumberFormat("en-TZ",{maximumFractionDigits:2}).format(n)+" TZS"}
+function normalizedMatrix(p){const m=p?.uomMatrix;if(!m)return[];if(Array.isArray(m))return m;if(typeof m==="object")return Object.entries(m).map(([unit,value])=>({unit,...(value&&typeof value==="object"?value:{conversionToBase:value})}));return[]}
+function uomEntry(p,unit){const base=String(p?.baseUnit||"piece").trim().toLowerCase();const m=normalizedMatrix(p);if(!m.length)return{unit:base,conversionToBase:1,sellingPrice:null};return m.find(e=>String(e.unit||e.uom||e.name||"").trim().toLowerCase()===unit)||null}
+function currentBatch(){return batches.find(b=>String(b._id)===batchSelect.value)||null}
+function selectedLine(){const unit=uomSelect.value,q=Number(quantityInput.value),entry=currentProduct?uomEntry(currentProduct,unit):null;if(!entry||!Number.isFinite(q)||q<=0)return null;const price=Number(entry.sellingPrice??entry.price),conv=Number(entry.conversionToBase??entry.conversion??entry.factor??entry.multiplier);if(!Number.isFinite(price)||price<0||!Number.isFinite(conv)||conv<=0)return null;return{productId:currentProduct._id,batchId:batchSelect.value,productName:[currentProduct.brandName,currentProduct.genericName].filter(Boolean).join(" — "),batchNumber:currentBatch()?.batchNumber||"",uom:String(entry.unit||unit).toLowerCase(),quantity:q,conversionToBase:conv,baseQuantity:q*conv,unitPrice:price,lineTotal:q*price}}
+function reserved(batchId){return cart.filter(i=>String(i.batchId)===String(batchId)).reduce((s,i)=>s+Number(i.baseQuantity),0)}
+function refresh(){const l=selectedLine(),b=currentBatch();if(!l){selectedUomElement.textContent="—";uomPriceElement.textContent="—";conversionElement.textContent="—";baseQuantityElement.textContent="—";lineTotalElement.textContent="—";batchStockElement.textContent=b?String(b.quantity??0):"—";addButton.disabled=true;return}selectedUomElement.textContent=l.uom;uomPriceElement.textContent=money(l.unitPrice);conversionElement.textContent=l.conversionToBase+" base units";baseQuantityElement.textContent=String(l.baseQuantity);lineTotalElement.textContent=money(l.lineTotal);const available=Number(b?.quantity??0),remaining=available-reserved(l.batchId);batchStockElement.textContent=`${available} base units (${remaining} remaining for this cart)`;addButton.disabled=!b||l.baseQuantity>remaining}
+function renderCart(){cartList.innerHTML="";cartCount.textContent=`${cart.length} line${cart.length===1?"":"s"}`;if(!cart.length){cartList.innerHTML='<div class="hint">No items in cart.</div>';cartTotalElement.textContent=money(0);checkoutButton.disabled=true;return}let total=0;cart.forEach((i,index)=>{total+=Number(i.lineTotal);const el=document.createElement("div");el.className="cart-item";el.innerHTML=`<div class="cart-item-top"><span>${i.uom} × ${i.quantity}</span><span>${money(i.lineTotal)}</span></div><div class="cart-meta">${i.productName}<br>Batch: ${i.batchNumber}<br>Base quantity: ${i.baseQuantity} | Unit price: ${money(i.unitPrice)}</div><button class="danger remove" type="button" data-remove="${index}">Remove</button>`;cartList.appendChild(el)});cartTotalElement.textContent=money(total);checkoutButton.disabled=false}
+async function loadProducts(){const r=await fetch("/api/products");const d=await r.json();if(!d.success)throw new Error(d.error||"Failed to load products.");products=d.products||[];productSelect.innerHTML='<option value="">Select product</option>';products.forEach(p=>{const o=document.createElement("option");o.value=p._id;o.textContent=[p.brandName,p.genericName].filter(Boolean).join(" — ");productSelect.appendChild(o)})}
+async function loadBatches(id){batchSelect.disabled=true;batchSelect.innerHTML='<option value="">Loading batches...</option>';const r=await fetch(`/api/batches?productId=${encodeURIComponent(id)}`);const d=await r.json();if(!d.success)throw new Error(d.error||"Failed to load batches.");batches=d.batches||[];batchSelect.innerHTML='<option value="">Select batch</option>';batches.forEach(b=>{const o=document.createElement("option");o.value=b._id;o.textContent=`${b.batchNumber} | Stock: ${b.quantity} | Exp: ${b.expiryDate?new Date(b.expiryDate).toLocaleDateString():"—"}`;batchSelect.appendChild(o)});batchSelect.disabled=batches.length===0}
+function loadUoms(p){const matrix=normalizedMatrix(p),base=String(p?.baseUnit||"piece").trim().toLowerCase(),entries=matrix.length?matrix:[{unit:base,conversionToBase:1}];uomSelect.innerHTML='<option value="">Select selling unit</option>';entries.forEach(e=>{const unit=String(e.unit||e.uom||e.name||"").trim().toLowerCase();if(!unit||e.enabled===false||e.active===false)return;const o=document.createElement("option");o.value=unit;o.textContent=unit.charAt(0).toUpperCase()+unit.slice(1);uomSelect.appendChild(o)});uomSelect.disabled=uomSelect.options.length<=1}
+function reset(){batchSelect.innerHTML='<option value="">Select product first</option>';batchSelect.disabled=true;uomSelect.innerHTML='<option value="">Select product first</option>';uomSelect.disabled=true;quantityInput.value="1";currentProduct=null;refresh()}
+productSelect.addEventListener("change",async()=>{currentProduct=products.find(p=>String(p._id)===productSelect.value)||null;if(!currentProduct){reset();return}messageElement.className="message";messageElement.textContent="";loadUoms(currentProduct);try{await loadBatches(currentProduct._id)}catch(e){messageElement.className="message error";messageElement.textContent=e.message}refresh()});
+uomSelect.addEventListener("change",refresh);batchSelect.addEventListener("change",refresh);quantityInput.addEventListener("input",refresh);
+addButton.addEventListener("click",()=>{const l=selectedLine(),b=currentBatch();if(!l||!b)return;const available=Number(b.quantity??0),r=available-reserved(l.batchId);if(l.baseQuantity>r){messageElement.className="message error";messageElement.textContent="Insufficient available stock for this cart.";return}cart.push(l);messageElement.className="message success";messageElement.textContent=`${l.quantity} ${l.uom} added to cart.`;renderCart();refresh()});
+clearButton.addEventListener("click",()=>{productSelect.value="";reset();messageElement.className="message";messageElement.textContent="Selection cleared."});
+cartList.addEventListener("click",e=>{const b=e.target.closest("button[data-remove]");if(!b)return;cart.splice(Number(b.dataset.remove),1);renderCart();refresh()});
+checkoutButton.addEventListener("click",async()=>{if(!cart.length)return;checkoutButton.disabled=true;addButton.disabled=true;messageElement.className="message";messageElement.textContent="Completing sale...";try{const r=await fetch("/api/transactions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({type:"SALE",items:cart.map(i=>({productId:i.productId,batchId:i.batchId,quantity:i.quantity,uom:i.uom})),paymentMethod:"CASH",reference:`UOM-POS-${Date.now()}`})});const d=await r.json();if(!d.success)throw new Error(d.error||"Sale failed.");const t=d.transaction;messageElement.className="message success";messageElement.textContent="Sale completed successfully.";transactionOutput.innerHTML=`Transaction: <strong>${t._id}</strong><br>Total: <strong>${money(t.totalAmount)}</strong><br>${t.items.map(i=>`${i.quantity} ${i.uom} → ${i.baseQuantity} base units @ ${money(i.unitPrice)}`).join("<br>")}`;const ids=[...new Set(cart.map(i=>i.productId))];cart=[];renderCart();for(const id of ids)if(currentProduct&&String(currentProduct._id)===String(id))await loadBatches(id);refresh()}catch(e){messageElement.className="message error";messageElement.textContent=e.message;checkoutButton.disabled=cart.length===0;refresh()}});
+(async()=>{try{const h=await fetch("/api/health"),d=await h.json();if(!d.success)throw new Error("Backend health check failed.");await loadProducts();statusElement.textContent="Backend connected. Ready for rapid cashier entry."}catch(e){statusElement.textContent="Backend unavailable: "+e.message;statusElement.className="status error"}renderCart();refresh()})();
+</script>
+</body>
+</html>
