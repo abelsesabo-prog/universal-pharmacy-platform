@@ -40,6 +40,11 @@ export async function createTransaction(
             COLLECTIONS.PRODUCTS
         );
 
+    const batches =
+        getCollection(
+            COLLECTIONS.BATCHES
+        );
+
 
     const items =
         Array.isArray(data.items)
@@ -62,9 +67,15 @@ export async function createTransaction(
 
     const transactionItems = [];
 
+    const validatedBatches = [];
+
 
     let totalAmount = 0;
 
+
+    // ------------------------------------------
+    // VALIDATE EVERY LINE BEFORE WRITING
+    // ------------------------------------------
 
     for (
         const item
@@ -105,12 +116,20 @@ export async function createTransaction(
         }
 
 
+        const productId =
+            new ObjectId(
+                item.productId
+            );
+
+        const batchId =
+            new ObjectId(
+                item.batchId
+            );
+
+
         const product =
             await products.findOne({
-                _id:
-                    new ObjectId(
-                        item.productId
-                    )
+                _id: productId
             });
 
 
@@ -127,6 +146,66 @@ export async function createTransaction(
         }
 
 
+        const batch =
+            await batches.findOne({
+                _id: batchId
+            });
+
+
+        if (!batch) {
+
+            const error =
+                new Error(
+                    "Batch not found for transaction item."
+                );
+
+            error.statusCode = 404;
+
+            throw error;
+        }
+
+
+        // A batch can only be sold against its owning product.
+        if (
+            String(batch.productId) !==
+            String(productId)
+        ) {
+
+            const error =
+                new Error(
+                    "Selected batch does not belong to the selected product."
+                );
+
+            error.statusCode = 409;
+
+            throw error;
+        }
+
+
+        // Expired stock must never reach the cashier sale path.
+        if (
+            batch.expiryDate &&
+            !Number.isNaN(
+                new Date(
+                    batch.expiryDate
+                ).getTime()
+            ) &&
+            new Date(
+                batch.expiryDate
+            ).getTime() < Date.now()
+        ) {
+
+            const error =
+                new Error(
+                    "Cannot sell an expired batch."
+                );
+
+            error.statusCode = 400;
+
+            throw error;
+        }
+
+
         const sale =
             calculateUomSale(
                 product,
@@ -136,21 +215,55 @@ export async function createTransaction(
             );
 
 
+        const availableQuantity =
+            Number(
+                batch.quantity
+            );
+
+
+        if (
+            !Number.isFinite(
+                availableQuantity
+            ) ||
+            availableQuantity < 0
+        ) {
+
+            const error =
+                new Error(
+                    "Batch stock quantity is invalid."
+                );
+
+            error.statusCode = 500;
+
+            throw error;
+        }
+
+
+        if (
+            sale.baseQuantity >
+            availableQuantity
+        ) {
+
+            const error =
+                new Error(
+                    `Insufficient stock. Current batch quantity is ${availableQuantity}.`
+                );
+
+            error.statusCode = 400;
+
+            throw error;
+        }
+
+
         totalAmount +=
             sale.lineTotal;
 
 
         transactionItems.push({
 
-            productId:
-                new ObjectId(
-                    item.productId
-                ),
+            productId,
 
-            batchId:
-                new ObjectId(
-                    item.batchId
-                ),
+            batchId,
 
             quantity:
                 sale.quantity,
@@ -171,8 +284,73 @@ export async function createTransaction(
                 sale.lineTotal
 
         });
+
+        validatedBatches.push({
+            batch,
+            baseQuantity:
+                sale.baseQuantity
+        });
     }
 
+
+    // ------------------------------------------
+    // AGGREGATE REPEATED BATCH USAGE
+    // ------------------------------------------
+
+    const batchUsage =
+        new Map();
+
+
+    for (
+        const item
+        of validatedBatches
+    ) {
+
+        const key =
+            String(
+                item.batch._id
+            );
+
+        batchUsage.set(
+            key,
+            (batchUsage.get(key) || 0) +
+                item.baseQuantity
+        );
+    }
+
+
+    for (
+        const item
+        of validatedBatches
+    ) {
+
+        const totalRequested =
+            batchUsage.get(
+                String(
+                    item.batch._id
+                )
+            );
+
+        if (
+            totalRequested >
+            Number(item.batch.quantity)
+        ) {
+
+            const error =
+                new Error(
+                    `Insufficient stock. Current batch quantity is ${item.batch.quantity}.`
+                );
+
+            error.statusCode = 400;
+
+            throw error;
+        }
+    }
+
+
+    // ------------------------------------------
+    // CREATE TRANSACTION RECORD
+    // ------------------------------------------
 
     const transaction = {
 
@@ -223,6 +401,10 @@ export async function createTransaction(
     const transactionId =
         result.insertedId;
 
+
+    // ------------------------------------------
+    // APPLY CANONICAL STOCK MOVEMENTS
+    // ------------------------------------------
 
     for (
         const item
@@ -349,11 +531,7 @@ export async function listTransactions(
             createdAt:
                 -1
         })
-        .skip(
-            skip
-        )
-        .limit(
-            limit
-        )
+        .skip(skip)
+        .limit(limit)
         .toArray();
 }
