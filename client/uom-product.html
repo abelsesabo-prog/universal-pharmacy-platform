@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Pharmacy Platform — UOM Product Setup</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: Arial, sans-serif; background: #f4f6f8; color: #1f2937; }
+        header { background: #1e40af; color: #fff; padding: 20px; }
+        header a { color: #fff; }
+        main { max-width: 1100px; margin: 0 auto; padding: 20px; }
+        .card { background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,.08); margin-bottom: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+        .field label { display: block; font-weight: 700; margin-bottom: 6px; }
+        input, button { width: 100%; padding: 11px; border-radius: 6px; font-size: 15px; }
+        input { border: 1px solid #cbd5e1; }
+        button { border: 0; background: #2563eb; color: #fff; font-weight: 700; cursor: pointer; }
+        button.secondary { background: #475569; }
+        button.danger { background: #b91c1c; }
+        .toolbar { display: flex; gap: 10px; margin-top: 15px; }
+        .toolbar button { width: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+        th { background: #f8fafc; }
+        .message { min-height: 22px; margin-top: 10px; }
+        .success { color: #166534; }
+        .error { color: #991b1b; }
+        .muted { color: #64748b; }
+        code { background: #eef2ff; padding: 2px 5px; border-radius: 4px; }
+        @media (max-width: 650px) { main { padding: 12px; } .toolbar { flex-direction: column; } .toolbar button { width: 100%; } }
+    </style>
+</head>
+<body>
+<header>
+    <h1>Universal Pharmacy Platform — UOM Product Setup</h1>
+    <a href="/uom-pos.html">← Back to UOM POS</a>
+</header>
+<main>
+    <section class="card">
+        <h2>Product Identity</h2>
+        <div class="grid">
+            <div class="field"><label for="brandName">Brand name</label><input id="brandName" required></div>
+            <div class="field"><label for="genericName">Generic name</label><input id="genericName" required></div>
+            <div class="field"><label for="dosageForm">Dosage form</label><input id="dosageForm" placeholder="Tablet / Supply / Bottle" required></div>
+            <div class="field"><label for="category">Category</label><input id="category" placeholder="Medicine / Medical Supply" required></div>
+            <div class="field"><label for="strength">Strength</label><input id="strength" placeholder="Optional"></div>
+            <div class="field"><label for="strengthUnit">Strength unit</label><input id="strengthUnit" placeholder="mg / ml / %"></div>
+            <div class="field"><label for="manufacturer">Manufacturer</label><input id="manufacturer"></div>
+            <div class="field"><label for="barcode">Barcode</label><input id="barcode"></div>
+            <div class="field"><label for="baseUnit">Canonical base unit</label><input id="baseUnit" value="piece" required></div>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Sellable Units</h2>
+        <p class="muted">Every row describes one sellable UOM. <code>conversionToBase</code> tells inventory how many base units one selling unit consumes. Price is independent.</p>
+        <table>
+            <thead><tr><th>Unit</th><th>Base units per UOM</th><th>Selling price</th><th>Enabled</th><th></th></tr></thead>
+            <tbody id="uomBody"></tbody>
+        </table>
+        <div class="toolbar">
+            <button id="addUom" class="secondary" type="button">Add UOM</button>
+        </div>
+        <p id="message" class="message muted"></p>
+    </section>
+
+    <section class="card">
+        <h2>Example</h2>
+        <p><code>piece → 1 → 250</code></p>
+        <p><code>pair → 2 → 500</code></p>
+        <p><code>box → 100 → 10000</code></p>
+        <div class="toolbar"><button id="saveProduct" type="button">Create Product</button></div>
+    </section>
+</main>
+
+<script>
+const uomBody = document.getElementById("uomBody");
+const message = document.getElementById("message");
+
+function addRow(values = {}) {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+        <td><input class="uom-unit" value="${values.unit || ""}" placeholder="piece"></td>
+        <td><input class="uom-conversion" type="number" min="0.000001" step="0.000001" value="${values.conversionToBase ?? ""}" placeholder="1"></td>
+        <td><input class="uom-price" type="number" min="0" step="0.01" value="${values.sellingPrice ?? ""}" placeholder="250"></td>
+        <td style="text-align:center"><input class="uom-enabled" type="checkbox" ${values.enabled === false ? "" : "checked"}></td>
+        <td><button class="danger remove-uom" type="button">Remove</button></td>
+    `;
+    uomBody.appendChild(row);
+}
+
+uomBody.addEventListener("click", event => {
+    const button = event.target.closest(".remove-uom");
+    if (!button) return;
+    const rows = uomBody.querySelectorAll("tr");
+    if (rows.length <= 1) {
+        message.className = "message error";
+        message.textContent = "At least one UOM entry is required.";
+        return;
+    }
+    button.closest("tr").remove();
+});
+
+document.getElementById("addUom").addEventListener("click", () => addRow());
+
+document.getElementById("saveProduct").addEventListener("click", async () => {
+    message.className = "message muted";
+    message.textContent = "Creating product...";
+    const uomMatrix = [...uomBody.querySelectorAll("tr")].map(row => ({
+        unit: row.querySelector(".uom-unit").value.trim(),
+        conversionToBase: Number(row.querySelector(".uom-conversion").value),
+        sellingPrice: Number(row.querySelector(".uom-price").value),
+        enabled: row.querySelector(".uom-enabled").checked
+    }));
+    const payload = {
+        brandName: document.getElementById("brandName").value.trim(),
+        genericName: document.getElementById("genericName").value.trim(),
+        dosageForm: document.getElementById("dosageForm").value.trim(),
+        category: document.getElementById("category").value.trim(),
+        strength: document.getElementById("strength").value.trim() || null,
+        strengthUnit: document.getElementById("strengthUnit").value.trim() || null,
+        manufacturer: document.getElementById("manufacturer").value.trim() || null,
+        registrationAgency: null,
+        registrationNumber: null,
+        baseUnit: document.getElementById("baseUnit").value.trim(),
+        uomMatrix,
+        barcode: document.getElementById("barcode").value.trim() || null
+    };
+    try {
+        const response = await fetch("/api/products", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (!data.success) throw new Error(data.error || "Failed to create product.");
+        message.className = "message success";
+        message.textContent = `Product created successfully: ${data.product._id}`;
+    } catch (error) {
+        message.className = "message error";
+        message.textContent = error.message;
+    }
+});
+
+addRow({ unit: "piece", conversionToBase: 1, sellingPrice: 250 });
+addRow({ unit: "pair", conversionToBase: 2, sellingPrice: 500 });
+addRow({ unit: "box", conversionToBase: 100, sellingPrice: 10000 });
+</script>
+</body>
+</html>
