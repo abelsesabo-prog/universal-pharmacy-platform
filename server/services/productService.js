@@ -2,12 +2,19 @@
 // Universal Pharmacy Platform
 // Product Service
 // ==========================================
+
 import { ObjectId } from "mongodb";
 import { COLLECTIONS } from "../../shared/schemas/index.js";
 import { validateProduct } from "../../shared/validators/index.js";
+import { validateUomConfiguration } from "../../shared/uom.js";
 import { getCollection } from "./index.js";
 
 function normalizeProduct(data) {
+    const uomValidation = validateUomConfiguration(
+        data.baseUnit,
+        data.uomMatrix
+    );
+
     return {
         brandName: String(data.brandName || "").trim(),
         genericName: String(data.genericName || "").trim(),
@@ -18,8 +25,8 @@ function normalizeProduct(data) {
         manufacturer: data.manufacturer ?? null,
         registrationAgency: data.registrationAgency ?? null,
         registrationNumber: data.registrationNumber ?? null,
-        baseUnit: data.baseUnit ?? null,
-        uomMatrix: data.uomMatrix ?? null,
+        baseUnit: uomValidation.baseUnit,
+        uomMatrix: uomValidation.uomMatrix,
         barcode: data.barcode ?? null,
         createdAt: new Date(),
         updatedAt: new Date()
@@ -31,6 +38,7 @@ export async function createProduct(data) {
 
     if (!validation.valid) {
         const error = new Error(
+            validation.error ||
             `Missing required fields: ${validation.missing.join(", ")}`
         );
 
@@ -39,7 +47,6 @@ export async function createProduct(data) {
     }
 
     const products = getCollection(COLLECTIONS.PRODUCTS);
-
     const product = normalizeProduct(data);
 
     const duplicate = await products.findOne({
@@ -50,7 +57,9 @@ export async function createProduct(data) {
     });
 
     if (duplicate) {
-        const error = new Error("A matching product already exists.");
+        const error = new Error(
+            "A matching product already exists."
+        );
 
         error.statusCode = 409;
         throw error;
@@ -88,14 +97,14 @@ export async function updateProduct(productId, data) {
     }
 
     const _id = new ObjectId(productId);
-
     const existing = await products.findOne({ _id });
 
     if (!existing) {
-    const error = new Error("Product not found.");
-    error.statusCode = 404;
-    throw error;
-}
+        const error = new Error("Product not found.");
+        error.statusCode = 404;
+        throw error;
+    }
+
     const allowedFields = [
         "brandName",
         "genericName",
@@ -120,7 +129,10 @@ export async function updateProduct(productId, data) {
     }
 
     if (Object.keys(updates).length === 0) {
-        const error = new Error("No valid product fields were provided.");
+        const error = new Error(
+            "No valid product fields were provided."
+        );
+
         error.statusCode = 400;
         throw error;
     }
@@ -134,11 +146,34 @@ export async function updateProduct(productId, data) {
 
     if (!validation.valid) {
         const error = new Error(
+            validation.error ||
             `Missing required fields: ${validation.missing.join(", ")}`
         );
 
         error.statusCode = 400;
         throw error;
+    }
+
+    if (
+        Object.prototype.hasOwnProperty.call(updates, "baseUnit") ||
+        Object.prototype.hasOwnProperty.call(updates, "uomMatrix")
+    ) {
+        const uomValidation = validateUomConfiguration(
+            candidate.baseUnit,
+            candidate.uomMatrix
+        );
+
+        if (!uomValidation.valid) {
+            const error = new Error(
+                uomValidation.errors.join(" ")
+            );
+
+            error.statusCode = 400;
+            throw error;
+        }
+
+        updates.baseUnit = uomValidation.baseUnit;
+        updates.uomMatrix = uomValidation.uomMatrix;
     }
 
     const duplicate = await products.findOne({
@@ -150,7 +185,10 @@ export async function updateProduct(productId, data) {
     });
 
     if (duplicate) {
-        const error = new Error("A matching product already exists.");
+        const error = new Error(
+            "A matching product already exists."
+        );
+
         error.statusCode = 409;
         throw error;
     }
@@ -182,7 +220,6 @@ export async function deleteProduct(productId) {
     }
 
     const _id = new ObjectId(productId);
-
     const existing = await products.findOne({ _id });
 
     if (!existing) {
@@ -215,10 +252,9 @@ export async function deleteProduct(productId) {
         throw error;
     }
 
-    const existingStockMovement =
-        await stockMovements.findOne({
-            productId: _id
-        });
+    const existingStockMovement = await stockMovements.findOne({
+        productId: _id
+    });
 
     if (existingStockMovement) {
         const error = new Error(
