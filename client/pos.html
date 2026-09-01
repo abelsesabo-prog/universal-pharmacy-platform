@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Universal Pharmacy Platform — POS</title>
+<style>
+*{box-sizing:border-box}
+:root{--bg:#f4f6f8;--panel:#fff;--line:#dbe3ec;--muted:#64748b;--ink:#172033;--brand:#1e40af;--brand2:#2563eb;--success:#166534;--danger:#b91c1c;--soft:#f8fafc}
+body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--ink)}
+header{position:sticky;top:0;z-index:20;background:var(--brand);color:#fff;padding:14px 18px;box-shadow:0 2px 10px rgba(0,0,0,.12)}
+.header-row{display:flex;gap:18px;align-items:center;justify-content:space-between;flex-wrap:wrap}.brand h1{font-size:24px;margin:0}.brand p{margin:4px 0 0;opacity:.88;font-size:13px}
+.nav{display:flex;gap:8px;flex-wrap:wrap}.nav a{color:#fff;text-decoration:none;border:1px solid rgba(255,255,255,.35);padding:8px 11px;border-radius:7px;font-weight:700;font-size:13px}.nav a.active{background:#fff;color:var(--brand)}
+main{max-width:1500px;margin:0 auto;padding:16px}.workspace{display:grid;grid-template-columns:minmax(300px,1fr) minmax(560px,1.45fr);gap:16px;align-items:start}.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 3px 12px rgba(15,23,42,.06)}
+.panel-head{padding:15px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;align-items:center}.eyebrow{font-size:11px;font-weight:800;letter-spacing:.08em;color:#64748b}.panel h2{margin:2px 0 0;font-size:20px}.panel-body{padding:16px}
+.form-grid{display:grid;gap:11px}.field{display:grid;gap:5px}.field label{font-weight:700;font-size:13px}.field small{color:var(--muted)}
+input,select,button,textarea{font:inherit}.field input,.field select,.field textarea{width:100%;border:1px solid #cbd5e1;border-radius:8px;padding:10px 11px;background:#fff;color:var(--ink)}.field input:focus,.field select:focus{outline:2px solid rgba(37,99,235,.18);border-color:var(--brand2)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.actions{display:flex;gap:9px}.actions button{flex:1}.btn{border:0;border-radius:8px;padding:11px 13px;font-weight:800;cursor:pointer}.btn.primary{background:var(--brand2);color:#fff}.btn.secondary{background:#475569;color:#fff}.btn.danger{background:var(--danger);color:#fff}.btn:disabled{opacity:.5;cursor:not-allowed}
+.entry-summary{margin-top:14px;padding:12px;border:1px solid var(--line);background:var(--soft);border-radius:9px;display:grid;gap:8px}.metric-line{display:flex;justify-content:space-between;gap:12px;font-size:13px}.metric-line strong{font-size:14px}.success{color:var(--success)}.error{color:#991b1b}.muted{color:var(--muted)}
+.cart-panel{position:sticky;top:86px}.cart-scroll{overflow:auto;max-height:70vh}.cart-table{width:100%;border-collapse:collapse;font-size:13px}.cart-table th,.cart-table td{padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:left;vertical-align:top}.cart-table th{background:#f8fafc;position:sticky;top:0;z-index:2}.cart-table .num{text-align:right;white-space:nowrap}.uom-badge{display:inline-block;padding:3px 7px;border-radius:999px;background:#eef2ff;color:#3730a3;font-weight:800;font-size:11px}.cart-foot{border-top:1px solid var(--line);padding:14px 16px;display:grid;gap:10px}.total-row{display:flex;justify-content:space-between;align-items:center;font-size:16px}.total-row strong{font-size:24px}.payment-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.notice{padding:9px 11px;border-radius:8px;background:#eff6ff;color:#1e3a8a;font-size:12px;border:1px solid #bfdbfe}.recent{margin-top:16px}.recent-body{padding:14px 16px;font-size:13px}.chip{display:inline-block;border:1px solid var(--line);padding:4px 8px;border-radius:999px;font-size:11px;background:var(--soft)}
+.loading{color:var(--muted);font-size:12px;margin-top:4px}
+@media(max-width:1000px){.workspace{grid-template-columns:1fr}.cart-panel{position:static}.cart-scroll{max-height:none}.brand h1{font-size:21px}}
+@media(max-width:620px){main{padding:10px}.row2,.payment-row{grid-template-columns:1fr}.nav a{flex:1;text-align:center}.cart-table{font-size:12px}.cart-table th,.cart-table td{padding:8px 6px}}
+</style>
+</head>
+<body>
+<header>
+<div class="header-row">
+<div class="brand"><h1>Universal Pharmacy Platform — POS</h1><p id="status">Starting cashier workspace…</p></div>
+<nav class="nav">
+<a class="active" href="/pos.html">Sell</a>
+<a href="/">Inventory</a>
+<a href="/uom-product.html">Product Setup</a>
+<a href="/uom-pos.html">UOM Lab</a>
+</nav>
+</div>
+</header>
+<main>
+<div class="workspace">
+<section class="panel">
+<div class="panel-head"><div><div class="eyebrow">FAST SALE ENTRY</div><h2>Add to Sale</h2></div><span class="chip" id="focusState">Ready</span></div>
+<div class="panel-body">
+<div class="form-grid">
+<div class="field"><label for="product">Product</label><input id="productSearch" type="text" placeholder="Scan barcode or type product name…" autocomplete="off"><select id="product"><option value="">Select product</option></select><small>Zero-stock products are excluded from the sale selector.</small></div>
+<div class="row2">
+<div class="field"><label for="batch">Batch</label><select id="batch" disabled><option value="">Select product first</option></select></div>
+<div class="field"><label for="uom">Selling unit</label><select id="uom" disabled><option value="">Select product first</option></select></div>
+</div>
+<div class="field"><label for="quantity">Quantity</label><input id="quantity" type="number" min="0.000001" step="0.000001" value="1" inputmode="decimal"></div>
+<div class="actions"><button class="btn primary" id="addButton" disabled>Add to Sale</button><button class="btn secondary" id="clearButton" type="button">Clear</button></div>
+</div>
+<div class="entry-summary" aria-live="polite">
+<div class="eyebrow">LIVE LINE INTELLIGENCE</div>
+<div class="metric-line"><span>Selling UOM</span><strong id="selectedUom">—</strong></div>
+<div class="metric-line"><span>UOM price</span><strong id="uomPrice">—</strong></div>
+<div class="metric-line"><span>Base conversion</span><strong id="conversion">—</strong></div>
+<div class="metric-line"><span>Stock consumed</span><strong id="baseQuantity">—</strong></div>
+<div class="metric-line"><span>Line total</span><strong id="lineTotal">—</strong></div>
+<div class="metric-line"><span>Available batch stock</span><strong id="batchStock">—</strong></div>
+</div>
+<p id="message" class="muted" aria-live="polite"></p>
+</div>
+</section>
+
+<section class="panel cart-panel">
+<div class="panel-head"><div><div class="eyebrow">TRANSACTION WORKSPACE</div><h2>Current Sale</h2></div><span class="chip" id="cartCount">0 lines</span></div>
+<div class="cart-scroll">
+<div id="cartEmpty" class="panel-body muted">No items in the current sale.</div>
+<table id="cartTable" class="cart-table" hidden>
+<thead><tr><th>Item</th><th>UOM</th><th class="num">Qty</th><th class="num">Base</th><th class="num">Price</th><th class="num">Total</th><th></th></tr></thead>
+<tbody id="cartBody"></tbody>
+</table>
+</div>
+<div class="cart-foot">
+<div class="total-row"><span>Grand Total</span><strong id="cartTotal">0 TZS</strong></div>
+<div class="payment-row"><div class="field"><label for="paymentMethod">Payment method</label><select id="paymentMethod"><option value="CASH">Cash</option><option value="M-PESA">M-Pesa</option><option value="MIXX">Mixx by Yas</option><option value="AIRTEL-MONEY">Airtel Money</option><option value="HALOPESA">HaloPesa</option><option value="AZAM-PESA">Azam Pesa</option></select></div><div class="field"><label for="reference">Reference</label><input id="reference" type="text" placeholder="Optional"></div></div>
+<div class="notice">The cart is a draft until <strong>Complete Sale</strong>. Stock is not permanently deducted until the server transaction succeeds.</div>
+<button class="btn primary" id="checkoutButton" disabled>Complete Sale</button>
+</div>
+</section>
+</div>
+
+<section class="panel recent"><div class="panel-head"><div><div class="eyebrow">POST-SALE</div><h2>Recent Transaction</h2></div></div><div class="recent-body" id="transactionOutput">No transaction completed yet.</div></section>
+</main>
+<script>
+const productEl=document.getElementById('product');
+const searchEl=document.getElementById('productSearch');
+const batchEl=document.getElementById('batch');
+const uomEl=document.getElementById('uom');
+const qtyEl=document.getElementById('quantity');
+const addBtn=document.getElementById('addButton');
+const clearBtn=document.getElementById('clearButton');
+const checkoutBtn=document.getElementById('checkoutButton');
+const paymentEl=document.getElementById('paymentMethod');
+const refEl=document.getElementById('reference');
+const statusEl=document.getElementById('status');
+const messageEl=document.getElementById('message');
+const focusEl=document.getElementById('focusState');
+const selectedUomEl=document.getElementById('selectedUom');
+const uomPriceEl=document.getElementById('uomPrice');
+const conversionEl=document.getElementById('conversion');
+const baseQtyEl=document.getElementById('baseQuantity');
+const lineTotalEl=document.getElementById('lineTotal');
+const batchStockEl=document.getElementById('batchStock');
+const cartBody=document.getElementById('cartBody');
+const cartTable=document.getElementById('cartTable');
+const cartEmpty=document.getElementById('cartEmpty');
+const cartCountEl=document.getElementById('cartCount');
+const cartTotalEl=document.getElementById('cartTotal');
+const transactionOutput=document.getElementById('transactionOutput');
+let products=[]; let batches=[]; let currentProduct=null; let cart=[]; let cacheDb=null;
+function money(v){const n=Number(v);if(!Number.isFinite(n))return '—';return new Intl.NumberFormat('en-TZ',{maximumFractionDigits:2}).format(n)+' TZS'}
+function db(){if(cacheDb)return Promise.resolve(cacheDb);return new Promise(resolve=>{if(!window.indexedDB)return resolve(null);const req=indexedDB.open('universal-pos-cache',1);req.onupgradeneeded=()=>{const d=req.result;if(!d.objectStoreNames.contains('products'))d.createObjectStore('products',{keyPath:'_id'});if(!d.objectStoreNames.contains('batches'))d.createObjectStore('batches',{keyPath:'_id'})};req.onsuccess=()=>{cacheDb=req.result;resolve(cacheDb)};req.onerror=()=>resolve(null)})}
+async function cacheRead(store){const d=await db();if(!d)return [];return new Promise(resolve=>{const tx=d.transaction(store,'readonly');const req=tx.objectStore(store).getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>resolve([])})}
+async function cacheWrite(store,items){const d=await db();if(!d)return;const tx=d.transaction(store,'readwrite');const os=tx.objectStore(store);for(const item of items)os.put(item)}
+function normalizedMatrix(p){const m=p?.uomMatrix;if(!m)return[];if(Array.isArray(m))return m;if(typeof m==='object')return Object.entries(m).map(([unit,val])=>({unit,...(val&&typeof val==='object'?val:{conversionToBase:val})}));return[]}
+function uomEntry(p,unit){const base=String(p?.baseUnit||'piece').trim().toLowerCase();const m=normalizedMatrix(p);if(!m.length)return{unit:base,conversionToBase:1,sellingPrice:null};return m.find(e=>String(e.unit||e.uom||e.name||'').trim().toLowerCase()===unit)||null}
+function batchFor(id){return batches.find(b=>String(b._id)===String(id))||null}
+function reserved(id){return cart.filter(x=>String(x.batchId)===String(id)).reduce((s,x)=>s+Number(x.baseQuantity),0)}
+function line(){const p=currentProduct;const unit=uomEl.value;const qty=Number(qtyEl.value);const b=batchFor(batchEl.value);const e=p?uomEntry(p,unit):null;if(!p||!b||!e||!Number.isFinite(qty)||qty<=0)return null;const price=Number(e.sellingPrice??e.price);const conv=Number(e.conversionToBase??e.conversion??e.factor??e.multiplier);if(!Number.isFinite(price)||price<0||!Number.isFinite(conv)||conv<=0)return null;return{productId:p._id,batchId:b._id,productName:[p.brandName,p.genericName].filter(Boolean).join(' — '),batchNumber:b.batchNumber||'',uom:String(e.unit||unit).toLowerCase(),quantity:qty,conversionToBase:conv,baseQuantity:qty*conv,unitPrice:price,lineTotal:qty*price}}
+function refresh(){const l=line();const b=batchFor(batchEl.value);if(!l){selectedUomEl.textContent='—';uomPriceEl.textContent='—';conversionEl.textContent='—';baseQtyEl.textContent='—';lineTotalEl.textContent='—';batchStockEl.textContent=b?String(b.quantity??0):'—';addBtn.disabled=true;return}selectedUomEl.textContent=l.uom;uomPriceEl.textContent=money(l.unitPrice);conversionEl.textContent=l.conversionToBase+' base units';baseQtyEl.textContent=String(l.baseQuantity);lineTotalEl.textContent=money(l.lineTotal);const available=Number(b.quantity||0);const remaining=available-reserved(l.batchId);batchStockEl.textContent=available+' base units ('+remaining+' available)';addBtn.disabled=l.baseQuantity>remaining}
+function loadUoms(){const p=currentProduct;const base=String(p?.baseUnit||'piece').trim().toLowerCase();const rows=normalizedMatrix(p);const entries=rows.length?rows:[{unit:base,conversionToBase:1,sellingPrice:null}];uomEl.innerHTML='<option value="">Select selling unit</option>';for(const e of entries){const unit=String(e.unit||e.uom||e.name||'').trim().toLowerCase();if(!unit||e.enabled===false||e.active===false)continue;const opt=document.createElement('option');opt.value=unit;opt.textContent=unit.charAt(0).toUpperCase()+unit.slice(1);uomEl.appendChild(opt)}uomEl.disabled=uomEl.options.length<=1;if(uomEl.options.length>1){uomEl.selectedIndex=1;refresh()}}
+function loadBatchesForProduct(pid){batchEl.disabled=true;batchEl.innerHTML='<option value="">Loading…</option>';const found=batches.filter(b=>String(b.productId)===String(pid)&&Number(b.quantity)>0);batchEl.innerHTML='<option value="">Select batch</option>';for(const b of found){const o=document.createElement('option');o.value=b._id;o.textContent=`${b.batchNumber} | Stock: ${b.quantity} | Exp: ${b.expiryDate?new Date(b.expiryDate).toLocaleDateString():'—'}`;batchEl.appendChild(o)}batchEl.disabled=found.length===0;if(found.length)batchEl.selectedIndex=1;refresh()}
+function renderProducts(){productEl.innerHTML='<option value="">Select product</option>';for(const p of products){const o=document.createElement('option');o.value=p._id;o.textContent=[p.brandName,p.genericName].filter(Boolean).join(' — ');productEl.appendChild(o)}}
+function renderCart(){cartBody.innerHTML='';cartCountEl.textContent=cart.length+' line'+(cart.length===1?'':'s');if(!cart.length){cartEmpty.hidden=false;cartTable.hidden=true;checkoutBtn.disabled=true;cartTotalEl.textContent=money(0);return}cartEmpty.hidden=true;cartTable.hidden=false;let total=0;for(const [i,x] of cart.entries()){total+=x.lineTotal;const tr=document.createElement('tr');tr.innerHTML=`<td><strong>${x.productName}</strong><br><span class="muted">${x.batchNumber}</span></td><td><span class="uom-badge">${x.uom}</span></td><td class="num">${x.quantity}</td><td class="num">${x.baseQuantity}</td><td class="num">${money(x.unitPrice)}</td><td class="num">${money(x.lineTotal)}</td><td><button class="btn danger" style="padding:6px 8px;font-size:11px" data-remove="${i}" type="button">Remove</button></td>`;cartBody.appendChild(tr)}cartTotalEl.textContent=money(total);checkoutBtn.disabled=false}
+async function loadData(){try{statusEl.textContent='Loading cashier catalog…';const [cp,cb]=await Promise.all([cacheRead('products'),cacheRead('batches')]);if(cp.length){products=cp.filter(p=>p&&p._id);renderProducts()}if(cb.length)batches=cb.filter(b=>b&&b._id);const [pr,br]=await Promise.all([fetch('/api/products'),fetch('/api/batches?limit=100')]);const pd=await pr.json();const bd=await br.json();if(!pd.success)throw new Error(pd.error||'Failed to load products.');products=pd.products||[];batches=bd.success?(bd.batches||[]):[];await Promise.all([cacheWrite('products',products),cacheWrite('batches',batches)]);renderProducts();statusEl.textContent='Backend connected. Ready for rapid cashier entry.';focusFirst();}catch(e){statusEl.textContent='Catalog offline: '+e.message;if(products.length)renderProducts()}}
+function focusFirst(){searchEl.focus();focusEl.textContent='Ready';}
+productEl.addEventListener('change',()=>{messageEl.textContent='';currentProduct=products.find(p=>String(p._id)===String(productEl.value))||null;if(!currentProduct){batchEl.disabled=true;batchEl.innerHTML='<option value="">Select product first</option>';uomEl.disabled=true;uomEl.innerHTML='<option value="">Select product first</option>';refresh();return}loadUoms();loadBatchesForProduct(currentProduct._id);});
+batchEl.addEventListener('change',refresh);uomEl.addEventListener('change',refresh);qtyEl.addEventListener('input',refresh);searchEl.addEventListener('input',()=>{const q=searchEl.value.trim().toLowerCase();if(!q)return;const match=products.find(p=>[p.brandName,p.genericName,p.barcode].filter(Boolean).join(' ').toLowerCase().includes(q));if(match){productEl.value=match._id;productEl.dispatchEvent(new Event('change'))}});
+addBtn.addEventListener('click',()=>{const l=line();if(!l)return;const b=batchFor(l.batchId);if(l.baseQuantity>Number(b?.quantity||0)-reserved(l.batchId)){messageEl.className='error';messageEl.textContent='Insufficient stock for this cart.';return}cart.push(l);messageEl.className='success';messageEl.textContent=`${l.quantity} ${l.uom} added to sale.`;renderCart();refresh();searchEl.value='';focusFirst()});
+clearBtn.addEventListener('click',()=>{productEl.value='';currentProduct=null;batchEl.disabled=true;batchEl.innerHTML='<option value="">Select product first</option>';uomEl.disabled=true;uomEl.innerHTML='<option value="">Select product first</option>';qtyEl.value='1';messageEl.className='muted';messageEl.textContent='Selection cleared.';refresh();focusFirst()});
+cartBody.addEventListener('click',e=>{const b=e.target.closest('[data-remove]');if(!b)return;cart.splice(Number(b.dataset.remove),1);renderCart();refresh()});
+checkoutBtn.addEventListener('click',async()=>{if(!cart.length)return;checkoutBtn.disabled=true;messageEl.className='muted';messageEl.textContent='Completing sale…';try{const r=await fetch('/api/transactions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'SALE',items:cart.map(x=>({productId:x.productId,batchId:x.batchId,quantity:x.quantity,uom:x.uom})),paymentMethod:paymentEl.value,reference:refEl.value.trim()||`POS-${Date.now()}`})});const d=await r.json();if(!d.success)throw new Error(d.error||'Sale failed.');const t=d.transaction;messageEl.className='success';messageEl.textContent='Sale completed successfully.';transactionOutput.innerHTML=`<strong>Transaction:</strong> ${t._id}<br><strong>Total:</strong> ${money(t.totalAmount)}<br><strong>Payment:</strong> ${t.paymentMethod}<br><strong>Items:</strong> ${t.items.map(x=>`${x.quantity} ${x.uom} → ${x.baseQuantity} base units`).join(' · ')}`;cart=[];renderCart();await loadData();productEl.value='';currentProduct=null;batchEl.disabled=true;uomEl.disabled=true;focusFirst()}catch(e){messageEl.className='error';messageEl.textContent=e.message;checkoutBtn.disabled=cart.length===0}});
+renderCart();refresh();loadData();
+</script>
+</body>
+</html>
