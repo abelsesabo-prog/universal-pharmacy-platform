@@ -31,7 +31,9 @@ function normalizeEntry(entry, fallbackUnit = "") {
     const source =
         typeof entry === "object" && entry !== null
             ? entry
-            : {};
+            : {
+                conversionToBase: entry
+            };
 
     const unit = cleanUnit(
         source.unit ||
