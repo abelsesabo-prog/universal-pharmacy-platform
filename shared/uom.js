@@ -72,11 +72,6 @@ function normalizeEntry(entry, fallbackUnit = "") {
     };
 }
 
-/**
- * Accept the current loose uomMatrix shape and normalize it into a
- * deterministic array. This preserves compatibility with object maps such as:
- * { piece: 1, pair: 2, box: { conversionToBase: 100, sellingPrice: 10000 } }
- */
 export function normalizeUomMatrix(matrix) {
     if (matrix === undefined || matrix === null || matrix === "") {
         return null;
@@ -106,7 +101,13 @@ export function validateUomConfiguration(
     const normalizedMatrix =
         normalizeUomMatrix(matrix);
 
-    if (!normalizedBaseUnit && matrix === undefined) {
+    // Null/empty values mean the product is using the legacy implicit base unit.
+    if (
+        !normalizedBaseUnit &&
+        (matrix === undefined ||
+            matrix === null ||
+            matrix === "")
+    ) {
         return {
             valid: true,
             baseUnit: null,
@@ -185,11 +186,6 @@ export function validateUomConfiguration(
     };
 }
 
-/**
- * Resolve a configured sellable UOM. Products without UOM configuration
- * continue to behave exactly as they did before: quantity is already in the
- * product's implicit base unit and price comes from the transaction payload.
- */
 export function resolveUom(
     product,
     requestedUnit
@@ -237,10 +233,6 @@ export function resolveUom(
     };
 }
 
-/**
- * Convert a selling-unit quantity into the canonical inventory unit and
- * resolve the authoritative selling price for that UOM.
- */
 export function calculateUomSale(
     product,
     quantity,
