@@ -49,15 +49,42 @@ A sale line may provide:
 The server resolves the product UOM, calculates the canonical stock quantity, resolves the configured UOM price, and stores both commercial and inventory representations:
 
 ```text
-uom            = box
-quantity       = 1
+uom              = box
+quantity         = 1
 conversionToBase = 100
-baseQuantity   = 100
-unitPrice      = 10000
-lineTotal      = 10000
+baseQuantity     = 100
+unitPrice        = 10000
+lineTotal        = 10000
 ```
 
 The stock movement receives `baseQuantity`, so one box consumes 100 canonical pieces. Existing stock protections continue to operate on that canonical quantity.
+
+## POS workflow
+
+`client/uom-pos.html` provides the selling workflow:
+
+1. Select a product.
+2. Select a batch.
+3. Select the selling UOM.
+4. Enter a selling-unit quantity.
+5. Review the calculated base-unit consumption and UOM price.
+6. Add the line to the cart.
+7. Add additional UOM lines for the same or different products.
+8. Complete the cart sale through the existing transaction endpoint.
+
+The browser uses UOM data for display and preview, but the server remains authoritative for conversion and price enforcement.
+
+## Product setup workflow
+
+`client/uom-product.html` provides a simple UOM product setup screen that creates products through the normal product endpoint. Each sellable UOM is entered with its conversion to the base unit and an independent selling price.
+
+Example examination gloves:
+
+```text
+piece = 1 base unit = TZS 250
+pair  = 2 base units = TZS 500
+box   = 100 base units = TZS 10,000
+```
 
 ## Backward compatibility
 
