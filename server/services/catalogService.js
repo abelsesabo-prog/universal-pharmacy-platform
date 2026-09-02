@@ -65,8 +65,6 @@ export async function searchCatalog(query, limit = 50) {
     const names = await loadDisplayNames();
     const cappedLimit = Math.min(Math.max(Number(limit) || 50, 1), MAX_RESULTS);
 
-    // Prefix matching is intentional: one typed letter is enough to open
-    // the alphabetical catalog, while longer text narrows it immediately.
     return names
         .filter(name => normalize(name).startsWith(q))
         .slice(0, cappedLimit)
@@ -101,7 +99,6 @@ async function resolveDrugName(name) {
 
 export async function resolveCatalogItem(name) {
     const result = await resolveDrugName(name);
-
     const generics = result.concepts.filter(item => item.generic);
     const brands = result.concepts.filter(item => item.branded);
 
@@ -153,7 +150,9 @@ export async function installCatalogFamily({ tenantId, name, category = "Medicin
             tenantId: scopedTenantId,
             brandName,
             genericName: primaryGeneric,
-            dosageForm: null,
+            // Catalog discovery does not invent clinical details. The user fills
+            // dosage form/strength/pack details when real stock is received.
+            dosageForm: "Unspecified",
             category: String(category).trim() || "Medicine",
             strength: null,
             strengthUnit: null,
