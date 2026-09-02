@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { appendOfflineEvent, markOfflineEvent } from "./offlineEventLedger.js";
+import { appendOfflineEvent, markOfflineEvent, validateOfflineEvent } from "./offlineEventLedger.js";
 import { replayOfflineEvent } from "./offlineEventProcessor.js";
 
 export const MAX_SYNC_EVENTS = 100;
@@ -53,6 +53,8 @@ export function validateSyncEnvelope(input = {}) {
             }
             if (text(event.tenantId) && text(event.tenantId) !== tenantId) errors.push(`event ${text(event.eventId) || "unknown"} has a tenant mismatch.`);
             if (text(event.deviceId) && text(event.deviceId) !== deviceId) errors.push(`event ${text(event.eventId) || "unknown"} has a device mismatch.`);
+            const contract = validateOfflineEvent({ ...event, tenantId, deviceId });
+            if (!contract.valid) errors.push(...contract.errors);
             const eventId = text(event.eventId);
             if (!eventId) errors.push("every event requires eventId.");
             else if (ids.has(eventId)) errors.push(`duplicate eventId '${eventId}' in sync batch.`);
@@ -65,7 +67,7 @@ export function validateSyncEnvelope(input = {}) {
             }
         }
     }
-    return { valid: errors.length === 0, errors };
+    return { valid: errors.length === 0, errors: [...new Set(errors)] };
 }
 
 export async function syncOfflineEvents(input = {}, options = {}) {
@@ -78,6 +80,7 @@ export async function syncOfflineEvents(input = {}, options = {}) {
 
     const tenantId = text(input.tenantId);
     const deviceId = text(input.deviceId);
+    const actorUserId = text(options.userId) || null;
     const acknowledgements = [];
 
     for (const rawEvent of input.events) {
@@ -85,8 +88,8 @@ export async function syncOfflineEvents(input = {}, options = {}) {
             ...rawEvent,
             tenantId,
             deviceId,
-            userId: text(rawEvent.userId) || options.userId || null,
-            fingerprint: fingerprintOfflineEvent({ ...rawEvent, tenantId, deviceId, userId: text(rawEvent.userId) || options.userId || null }),
+            userId: actorUserId,
+            fingerprint: fingerprintOfflineEvent({ ...rawEvent, tenantId, deviceId, userId: actorUserId }),
             status: "PENDING"
         };
 
