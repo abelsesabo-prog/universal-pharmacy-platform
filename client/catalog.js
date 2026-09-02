@@ -4,18 +4,22 @@
 // ==========================================
 
 const SEARCH_DELAY_MS = 120;
+const ACCESS_TOKEN_KEY = "upp_access_token";
+
+function authHeaders(extra = {}) {
+    const headers = new Headers(extra);
+    const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    return headers;
+}
 
 export function attachCatalogAutocomplete({ input, results, apiBase = "/api/catalog" }) {
-    if (!input || !results) {
-        throw new Error("Catalog autocomplete requires input and results elements.");
-    }
-
+    if (!input || !results) throw new Error("Catalog autocomplete requires input and results elements.");
     let timer = null;
     let requestId = 0;
 
     const render = items => {
         results.replaceChildren();
-
         for (const item of items) {
             const button = document.createElement("button");
             button.type = "button";
@@ -28,27 +32,17 @@ export function attachCatalogAutocomplete({ input, results, apiBase = "/api/cata
 
     const search = async value => {
         const query = String(value || "").trim();
-        if (!query) {
-            render([]);
-            return;
-        }
-
+        if (!query) return render([]);
         const currentRequest = ++requestId;
-        const response = await fetch(`${apiBase}/search?q=${encodeURIComponent(query)}&limit=50`, {
-            headers: { Accept: "application/json" }
-        });
-
+        const response = await fetch(`${apiBase}/search?q=${encodeURIComponent(query)}&limit=50`, { headers: authHeaders({ Accept: "application/json" }) });
         if (currentRequest !== requestId || !response.ok) return;
-
         const payload = await response.json();
         render(Array.isArray(payload.results) ? payload.results : []);
     };
 
     input.addEventListener("input", () => {
         clearTimeout(timer);
-        timer = setTimeout(() => {
-            search(input.value).catch(() => render([]));
-        }, SEARCH_DELAY_MS);
+        timer = setTimeout(() => search(input.value).catch(() => render([])), SEARCH_DELAY_MS);
     });
 
     results.addEventListener("click", event => {
@@ -63,21 +57,8 @@ export function attachCatalogAutocomplete({ input, results, apiBase = "/api/cata
         async installSelected({ category = "Medicine" } = {}) {
             const name = String(input.value || "").trim();
             if (!name) throw new Error("Select a catalog item first.");
-
-            const response = await fetch(`${apiBase}/install`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Accept: "application/json"
-                },
-                body: JSON.stringify({ name, category })
-            });
-
-            if (!response.ok) {
-                const payload = await response.json().catch(() => ({}));
-                throw new Error(payload.error || "Catalog installation failed.");
-            }
-
+            const response = await fetch(`${apiBase}/install`, { method: "POST", headers: authHeaders({ "Content-Type": "application/json", Accept: "application/json" }), body: JSON.stringify({ name, category }) });
+            if (!response.ok) { const payload = await response.json().catch(() => ({})); throw new Error(payload.error || "Catalog installation failed."); }
             return response.json();
         }
     };
