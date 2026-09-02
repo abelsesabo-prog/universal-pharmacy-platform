@@ -3,7 +3,7 @@
 // Shared Data Schemas
 // ==========================================
 
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 export const COLLECTIONS = Object.freeze({
     TENANTS: "tenants", USERS: "users", BRANCHES: "branches", PRODUCTS: "products", BATCHES: "batches", SALES: "sales", SALE_ITEMS: "sale_items", PURCHASES: "purchases", PURCHASE_ITEMS: "purchase_items", STOCK_MOVEMENTS: "stock_movements", CUSTOMERS: "customers", SUPPLIERS: "suppliers", EXPENSES: "expenses", AUDIT_LOGS: "audit_logs", OFFLINE_EVENTS: "offline_events", TMDA_QUARANTINES: "tmda_quarantines"
@@ -21,5 +21,5 @@ export const TMDA_QUARANTINE_STATUSES = Object.freeze(["QUARANTINED", "RELEASED"
 export const TMDA_QUARANTINE_REASONS = Object.freeze(["EXPIRED", "DAMAGED", "RECALL", "SUSPECT", "REGULATORY_HOLD", "OTHER"]);
 export const TMDA_DISPOSITION_TYPES = Object.freeze(["RETURN_SUPPLIER", "DESTROY", "AUTHORISED_RELEASE", "OTHER"]);
 
-export const OFFLINE_EVENT_SCHEMA = Object.freeze({ required: ["eventId", "tenantId", "deviceId", "eventType", "occurredAt", "payload", "status"], optional: ["branchId", "userId", "sequence", "receivedAt", "processedAt", "error"] });
-export const OFFLINE_EVENT_STATUSES = Object.freeze(["PENDING", "APPLIED", "REJECTED"]);
+export const OFFLINE_EVENT_SCHEMA = Object.freeze({ required: ["eventId", "tenantId", "deviceId", "eventType", "occurredAt", "payload", "status"], optional: ["branchId", "userId", "sequence", "fingerprint", "receivedAt", "processedAt", "replayPhase", "error"] });
+export const OFFLINE_EVENT_STATUSES = Object.freeze(["PENDING", "APPLIED", "REJECTED", "CONFLICT"]);
