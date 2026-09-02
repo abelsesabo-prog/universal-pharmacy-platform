@@ -1,4 +1,5 @@
-import { previewInvoice, commitInvoice } from "../services/invoiceImportService.js";
+import { previewInvoice } from "../services/invoiceImportService.js";
+import { commitInvoiceAtomic } from "../services/invoiceAtomicImportService.js";
 import { recordAudit } from "../services/auditService.js";
 
 function actor(req) { return req.user?.sub || req.user?.userId || null; }
@@ -19,7 +20,7 @@ export async function previewInvoiceController(req, res, next) {
 export async function commitInvoiceController(req, res, next) {
     try {
         const { rows, filename, branchId } = req.body || {};
-        const result = await commitInvoice({ tenantId: req.user.tenantId, createdBy: actor(req), branchId, rows, filename });
+        const result = await commitInvoiceAtomic({ tenantId: req.user.tenantId, createdBy: actor(req), branchId, rows, filename });
         await audit(req, { action: "INVOICE_IMPORT", resource: "invoice", details: { filename: result.filename, importedCount: result.importedCount, productsCreated: result.productsCreated, batchesCreated: result.batchesCreated } });
         return res.status(201).json({ success: true, result });
     } catch (error) { return next(error); }
