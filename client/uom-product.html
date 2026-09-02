@@ -18,6 +18,7 @@
         button { border: 0; background: #2563eb; color: #fff; font-weight: 700; cursor: pointer; }
         button.secondary { background: #475569; }
         button.danger { background: #b91c1c; }
+        button:disabled { opacity: .55; cursor: not-allowed; }
         .toolbar { display: flex; gap: 10px; margin-top: 15px; }
         .toolbar button { width: auto; }
         table { width: 100%; border-collapse: collapse; }
@@ -37,6 +38,20 @@
     <a href="/uom-pos.html">← Back to UOM POS</a>
 </header>
 <main>
+    <section class="card">
+        <h2>Authenticated Session</h2>
+        <p class="muted">Product creation requires an authenticated admin or manager session. The token is kept only for this browser session.</p>
+        <div class="grid">
+            <div class="field"><label for="username">Username</label><input id="username" autocomplete="username"></div>
+            <div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password"></div>
+        </div>
+        <div class="toolbar">
+            <button id="loginButton" type="button">Sign In</button>
+            <button id="logoutButton" class="secondary" type="button">Clear Session</button>
+        </div>
+        <p id="authMessage" class="message muted"></p>
+    </section>
+
     <section class="card">
         <h2>Product Identity</h2>
         <div class="grid">
@@ -70,13 +85,60 @@
         <p><code>piece → 1 → 250</code></p>
         <p><code>pair → 2 → 500</code></p>
         <p><code>box → 100 → 10000</code></p>
-        <div class="toolbar"><button id="saveProduct" type="button">Create Product</button></div>
+        <div class="toolbar"><button id="saveProduct" type="button" disabled>Create Product</button></div>
     </section>
 </main>
 
 <script>
 const uomBody = document.getElementById("uomBody");
 const message = document.getElementById("message");
+const authMessage = document.getElementById("authMessage");
+const saveProduct = document.getElementById("saveProduct");
+const TOKEN_KEY = "universal-pharmacy.authToken";
+
+function getToken() {
+    return sessionStorage.getItem(TOKEN_KEY) || "";
+}
+
+function setAuthState(text, className = "message muted") {
+    authMessage.className = className;
+    authMessage.textContent = text;
+    saveProduct.disabled = !getToken();
+}
+
+async function login() {
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value;
+    if (!username || !password) {
+        setAuthState("Username and password are required.", "message error");
+        return;
+    }
+
+    setAuthState("Signing in...");
+    try {
+        const response = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.token) {
+            throw new Error(data.error || `Sign-in failed (${response.status}).`);
+        }
+        sessionStorage.setItem(TOKEN_KEY, data.token);
+        document.getElementById("password").value = "";
+        setAuthState("Authenticated. Product creation is unlocked for this session.", "message success");
+    } catch (error) {
+        sessionStorage.removeItem(TOKEN_KEY);
+        setAuthState(error.message, "message error");
+    }
+}
+
+document.getElementById("loginButton").addEventListener("click", login);
+document.getElementById("logoutButton").addEventListener("click", () => {
+    sessionStorage.removeItem(TOKEN_KEY);
+    setAuthState("Session cleared.");
+});
 
 function addRow(values = {}) {
     const row = document.createElement("tr");
@@ -105,6 +167,12 @@ uomBody.addEventListener("click", event => {
 document.getElementById("addUom").addEventListener("click", () => addRow());
 
 document.getElementById("saveProduct").addEventListener("click", async () => {
+    const token = getToken();
+    if (!token) {
+        setAuthState("Sign in before creating a product.", "message error");
+        return;
+    }
+
     message.className = "message muted";
     message.textContent = "Creating product...";
     const uomMatrix = [...uomBody.querySelectorAll("tr")].map(row => ({
@@ -127,14 +195,25 @@ document.getElementById("saveProduct").addEventListener("click", async () => {
         uomMatrix,
         barcode: document.getElementById("barcode").value.trim() || null
     };
+
     try {
         const response = await fetch("/api/products", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
             body: JSON.stringify(payload)
         });
-        const data = await response.json();
-        if (!data.success) throw new Error(data.error || "Failed to create product.");
+        const data = await response.json().catch(() => ({}));
+        if (response.status === 401 || response.status === 403) {
+            sessionStorage.removeItem(TOKEN_KEY);
+            setAuthState("Session is no longer valid. Sign in again.", "message error");
+            throw new Error(data.error || "Authentication required.");
+        }
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || `Failed to create product (${response.status}).`);
+        }
         message.className = "message success";
         message.textContent = `Product created successfully: ${data.product._id}`;
     } catch (error) {
@@ -146,6 +225,8 @@ document.getElementById("saveProduct").addEventListener("click", async () => {
 addRow({ unit: "piece", conversionToBase: 1, sellingPrice: 250 });
 addRow({ unit: "pair", conversionToBase: 2, sellingPrice: 500 });
 addRow({ unit: "box", conversionToBase: 100, sellingPrice: 10000 });
+
+setAuthState(getToken() ? "Existing authenticated session detected." : "Sign in to enable product creation.", getToken() ? "message success" : "message muted");
 </script>
 </body>
 </html>
