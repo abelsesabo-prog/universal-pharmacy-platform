@@ -15,30 +15,44 @@ const placeholders = [
     "USER_A",
     "USER_B",
     "PASSWORD_A",
-    "PASSWORD_B"
+    "PASSWORD_B",
+    "REPLACE_WITH_"
 ];
 
 function isPlaceholder(value) {
     return placeholders.some((placeholder) => value.toUpperCase().includes(placeholder));
 }
 
+function failConfiguration(message) {
+    console.error(message);
+    process.exitCode = 2;
+}
+
 const invalidConfiguration = [
     ["OFFLINE_ACCEPTANCE_BASE_URL", baseUrl],
     ["OFFLINE_ACCEPTANCE_USERNAME_A", usernameA],
     ["OFFLINE_ACCEPTANCE_PASSWORD_A", passwordA],
+    ["OFFLINE_ACCEPTANCE_USERNAME_B", usernameB],
+    ["OFFLINE_ACCEPTANCE_PASSWORD_B", passwordB],
     ["OFFLINE_ACCEPTANCE_TENANT_ID", configuredTenantId]
 ].filter(([, value]) => value && isPlaceholder(value));
 
 if (invalidConfiguration.length) {
-    console.error("Acceptance configuration still contains placeholder values:");
-    for (const [name] of invalidConfiguration) console.error(`- ${name}`);
-    console.error("Use the real server URL and real authentication credentials. Secrets must not be pasted into chat.");
-    process.exitCode = 2;
+    failConfiguration(
+        [
+            "Acceptance configuration still contains placeholder values:",
+            ...invalidConfiguration.map(([name]) => `- ${name}`),
+            "Use the real server URL and real authentication credentials. Secrets must not be pasted into chat."
+        ].join("\n")
+    );
 } else if ((!tokenA && (!usernameA || !passwordA)) || (!tokenB && (usernameB || passwordB) && (!usernameB || !passwordB))) {
-    console.error("Provide Device A credentials/token. Device B may reuse Device A by leaving B variables unset.");
-    console.error("Token mode: OFFLINE_ACCEPTANCE_TOKEN_A (and optional TOKEN_B)");
-    console.error("Login mode: OFFLINE_ACCEPTANCE_USERNAME_A + OFFLINE_ACCEPTANCE_PASSWORD_A (and optional B pair)");
-    process.exitCode = 2;
+    failConfiguration(
+        [
+            "Provide Device A credentials/token. Device B may reuse Device A by leaving B variables unset.",
+            "Token mode: OFFLINE_ACCEPTANCE_TOKEN_A (and optional TOKEN_B)",
+            "Login mode: OFFLINE_ACCEPTANCE_USERNAME_A + OFFLINE_ACCEPTANCE_PASSWORD_A (and optional B pair)"
+        ].join("\n")
+    );
 } else {
     const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const deviceA = `acceptance-device-a-${suffix}`;
@@ -56,13 +70,19 @@ if (invalidConfiguration.length) {
     }
 
     async function login(username, password, label) {
-        const response = await fetch(`${baseUrl}/api/auth/login`, {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ username, password })
-        });
+        let response;
+        try {
+            response = await fetch(`${baseUrl}/api/auth/login`, {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ username, password })
+            });
+        } catch (error) {
+            throw new Error(`${label} login could not reach ${baseUrl}: ${error.message}`);
+        }
+
         const body = await response.json().catch(() => ({}));
-        assert.equal(response.ok, true, `${label} login failed: ${JSON.stringify(body)}`);
+        assert.equal(response.ok, true, `${label} login failed at ${baseUrl}: ${JSON.stringify(body)}`);
         assert.ok(body.token, `${label} login response did not contain a token.`);
         return body.token;
     }
@@ -72,14 +92,19 @@ if (invalidConfiguration.length) {
     }
 
     async function sync(token, deviceId, events) {
-        const response = await fetch(`${baseUrl}/api/offline/sync`, {
-            method: "POST",
-            headers: {
-                "content-type": "application/json",
-                authorization: `Bearer ${token}`
-            },
-            body: JSON.stringify({ deviceId, events })
-        });
+        let response;
+        try {
+            response = await fetch(`${baseUrl}/api/offline/sync`, {
+                method: "POST",
+                headers: {
+                    "content-type": "application/json",
+                    authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({ deviceId, events })
+            });
+        } catch (error) {
+            throw new Error(`Offline sync could not reach ${baseUrl}: ${error.message}`);
+        }
         const body = await response.json().catch(() => ({}));
         assert.equal(response.ok, true, JSON.stringify(body));
         assert.equal(body.success, true);
@@ -107,15 +132,35 @@ if (invalidConfiguration.length) {
         const claimsA = decodeClaims(resolvedTokenA);
         const claimsB = decodeClaims(resolvedTokenB);
 
-        assert.ok(claimsA, "Device A authentication token is not a JWT produced by this platform.");
-        assert.ok(claimsB, "Device B authentication token is not a JWT produced by this platform.");
+        assert.ok(claimsA, "Device A authentication token is not a JWT. Check that the acceptance URL points to this platform.");
+        assert.ok(claimsB, "Device B authentication token is not a JWT. Check that the acceptance URL points to this platform.");
+        assert.equal(
+            claimsA.iss,
+            "universal-pharmacy-platform",
+            "Device A token issuer does not match this platform. Check OFFLINE_ACCEPTANCE_BASE_URL."
+        );
+        assert.equal(
+            claimsB.iss,
+            "universal-pharmacy-platform",
+            "Device B token issuer does not match this platform. Check OFFLINE_ACCEPTANCE_BASE_URL."
+        );
+        assert.equal(
+            claimsA.aud,
+            "universal-pharmacy-api",
+            "Device A token audience does not match this platform. Check OFFLINE_ACCEPTANCE_BASE_URL."
+        );
+        assert.equal(
+            claimsB.aud,
+            "universal-pharmacy-api",
+            "Device B token audience does not match this platform. Check OFFLINE_ACCEPTANCE_BASE_URL."
+        );
         assert.ok(
             claimsA.tenantId,
-            `Device A token has no tenant claim. Check OFFLINE_ACCEPTANCE_BASE_URL (${baseUrl}) points to the current authentication service.`
+            `Device A token has no tenant claim. The login endpoint at ${baseUrl} is not issuing the required tenant-scoped token.`
         );
         assert.ok(
             claimsB.tenantId,
-            `Device B token has no tenant claim. Check OFFLINE_ACCEPTANCE_BASE_URL (${baseUrl}) points to the current authentication service.`
+            `Device B token has no tenant claim. The login endpoint at ${baseUrl} is not issuing the required tenant-scoped token.`
         );
         assert.equal(claimsA.tenantId, claimsB.tenantId, "Acceptance identities must belong to the same tenant.");
         if (configuredTenantId) {
