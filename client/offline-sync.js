@@ -82,7 +82,11 @@ export async function syncOfflineOutbox({ tenantId, deviceId, token, endpoint = 
         body: JSON.stringify({ deviceId, events: pending.slice(0, 100) })
     });
     const body = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(body.error || `Offline sync failed with HTTP ${response.status}.`);
+    if (!response.ok) {
+        const error = new Error(body.error || `Offline sync failed with HTTP ${response.status}.`);
+        error.statusCode = Number(response.status) || 500;
+        throw error;
+    }
     await acknowledgeOfflineEvents(body.acknowledgements || [], indexedDBRef);
     return body;
 }
