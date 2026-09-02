@@ -3,6 +3,7 @@ import { COLLECTIONS } from "../../shared/schemas/index.js";
 import { validateProduct } from "../../shared/validators/index.js";
 import { validateUomConfiguration } from "../../shared/uom.js";
 import { getCollection } from "./index.js";
+import { buildProductIdentityKey } from "./invoiceProductResolver.js";
 
 function assertTenantId(tenantId) {
     const normalized = String(tenantId || "").trim();
@@ -49,10 +50,11 @@ export async function createProduct(data, tenantId) {
     if (!uomValidation.valid) { const error = new Error(uomValidation.errors.join(" ")); error.statusCode = 400; throw error; }
     const products = getCollection(COLLECTIONS.PRODUCTS);
     const product = normalizeProduct(data, scopedTenantId);
-    const duplicate = await products.findOne({ tenantId: scopedTenantId, brandName: product.brandName, genericName: product.genericName, dosageForm: product.dosageForm, strength: product.strength });
+    const identityKey = buildProductIdentityKey(product);
+    const duplicate = await products.findOne({ tenantId: scopedTenantId, identityKey });
     if (duplicate) { const error = new Error("A matching product already exists."); error.statusCode = 409; throw error; }
-    const result = await products.insertOne(product);
-    return { ...product, _id: result.insertedId };
+    const result = await products.insertOne({ ...product, identityKey });
+    return { ...product, identityKey, _id: result.insertedId };
 }
 
 export async function getProductById(productId, tenantId) {
@@ -81,8 +83,10 @@ export async function updateProduct(productId, data, tenantId) {
         updates.baseUnit = uomValidation.baseUnit;
         updates.uomMatrix = uomValidation.uomMatrix;
     }
-    const duplicate = await products.findOne({ _id: { $ne: _id }, tenantId: scopedTenantId, brandName: String(candidate.brandName || "").trim(), genericName: String(candidate.genericName || "").trim(), dosageForm: String(candidate.dosageForm || "").trim(), strength: candidate.strength ?? null });
+    const identityKey = buildProductIdentityKey(candidate);
+    const duplicate = await products.findOne({ _id: { $ne: _id }, tenantId: scopedTenantId, identityKey });
     if (duplicate) { const error = new Error("A matching product already exists."); error.statusCode = 409; throw error; }
+    updates.identityKey = identityKey;
     updates.updatedAt = new Date();
     await products.updateOne({ _id, tenantId: scopedTenantId }, { $set: updates });
     return products.findOne({ _id, tenantId: scopedTenantId });
