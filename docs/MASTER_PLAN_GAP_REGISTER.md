@@ -13,18 +13,21 @@ The recovered Master Plan/SRS copies were reviewed as one requirement set becaus
 - Batch-level cost and inventory lot tracking.
 - Atomic invoice import with existing-product resolution and tenant-scoped identity protection.
 - Invoice row/file safety boundaries and automated tests.
+- Explainable product/invoice reasoning decision contract.
+- Offline event ledger and replay validation contracts with idempotency/lifecycle protection.
 - Master POS and Smart Invoice workspaces.
 - Audit and branch foundations.
+- Human-system executable anatomy contract.
+- TMDA quarantine/disposal organ with tenant-scoped batch linkage, explicit reasons, controlled disposition lifecycle and authorization evidence.
 
 ## Highest-priority gaps from the Master Plan
 
-1. **Reasoning layer:** invoice/product decisions need an explicit, explainable decision contract rather than scattered heuristics.
-2. **Offline synchronization:** IndexedDB/event-ledger synchronization is required by the plan and is not yet a complete universal sync subsystem.
-3. **Human-system architecture:** the system/organ/tissue/cell model was previously conceptual; it is now represented by an executable architecture contract so domain boundaries can be tested and extended without creating duplicate state registries.
-4. **Regulated pharmacy organs:** TMDA quarantine/disposal, interaction/allergy safety, NHIF workflow, expiry relocation and EFD integration remain implementation gaps.
-5. **Universal business organs:** bookkeeping/expense reconciliation and customer complaint workflows need complete cross-business implementations and audit integration.
-6. **Expansion organs:** EHR, laboratory, inpatient, enterprise wholesale, multi-warehouse logistics and migration remain future domain implementations.
-7. **UI automation:** guided category-aware item entry, inline interaction and continuous focus need end-to-end browser verification and remaining adapters.
+1. **Offline synchronization:** IndexedDB/event-ledger synchronization is required by the plan and is not yet a complete universal sync subsystem.
+2. **Regulated pharmacy organs:** interaction/allergy safety, NHIF workflow, expiry relocation and EFD integration remain implementation gaps; TMDA quarantine/disposal is now represented by an executable organ contract.
+3. **Universal business organs:** bookkeeping/expense reconciliation and customer complaint workflows need complete cross-business implementations and audit integration.
+4. **Expansion organs:** EHR, laboratory, inpatient, enterprise wholesale, multi-warehouse logistics and migration remain future domain implementations.
+5. **UI automation:** guided category-aware item entry, inline interaction and continuous focus need end-to-end browser verification and remaining adapters.
+6. **Production integration:** cross-domain audit/event emission and database transaction boundaries need live integration verification, including quarantine stock movements and finalized dispositions.
 
 ## Human architecture rule
 
@@ -36,10 +39,9 @@ A lower-level component owns its local state and exposes contracts upward. Highe
 
 ## Next implementation order
 
-1. Reasoning decision contract and invoice decision explanations.
-2. Offline event ledger/synchronization contract.
-3. TMDA quarantine and disposal organ.
-4. Financial/complaint organs and cross-domain audit events.
-5. Clinical safety/NHIF/EFD adapters.
-6. Hospital, laboratory, enterprise and migration organs.
-7. Browser-level acceptance verification of the complete Master Plan workflow.
+1. Complete universal offline synchronization against IndexedDB/device replay and conflict handling.
+2. Add interaction/allergy safety, NHIF, expiry relocation and EFD adapters around canonical domain truth.
+3. Implement financial/complaint organs with cross-domain audit events.
+4. Add production integration tests for regulated stock, audit and transactional boundaries.
+5. Implement hospital, laboratory, enterprise and migration organs.
+6. Perform browser-level acceptance verification of the complete Master Plan workflow.
