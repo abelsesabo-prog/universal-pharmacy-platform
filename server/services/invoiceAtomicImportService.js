@@ -7,6 +7,7 @@ import { validateProduct } from "../../shared/validators/index.js";
 import { resolveUom, validateUomConfiguration } from "../../shared/uom.js";
 import { MAX_INVOICE_ROWS } from "./invoiceImportService.js";
 import { canonicalProductIdentity, resolveExistingInvoiceProduct } from "./invoiceProductResolver.js";
+import { decideProductResolution } from "../reasoning/decisionEngine.js";
 
 function fail(message, statusCode = 400) { const error = new Error(message); error.statusCode = statusCode; throw error; }
 function text(value) { return String(value ?? "").trim(); }
@@ -105,6 +106,8 @@ export async function commitInvoiceAtomic({ tenantId, createdBy, branchId, rows,
                     if (!product) fail(`Unable to resolve canonical product for invoice row ${row.rowNumber || ""}.`, 409);
                 }
 
+                const identityKey = canonicalProductIdentity(product);
+                const resolutionDecision = decideProductResolution({ existingProduct: productCreated ? null : product, identityKey, tenantId });
                 const requestedUnit = text(row.uom).toLowerCase() || text(product.baseUnit).toLowerCase() || "piece";
                 const authoritative = resolveUom(product, requestedUnit);
                 if (requestedUnit !== "piece" && Number(row.conversionToBase) !== Number(authoritative.conversionToBase)) fail(`UOM conversion mismatch for '${requestedUnit}' on invoice row ${row.rowNumber || ""}. Product configuration is authoritative.`);
@@ -116,7 +119,7 @@ export async function commitInvoiceAtomic({ tenantId, createdBy, branchId, rows,
                 const batchResult = await batches.insertOne(batch, { session });
                 await products.updateOne({ _id: product._id, tenantId }, { $inc: { stockQuantity: baseQuantity }, $set: { updatedAt: now } }, { session });
                 await movements.insertOne({ tenantId, productId: product._id, batchId: batchResult.insertedId, type: "PURCHASE", quantity: baseQuantity, direction: "IN", branchId: activeBranch, reference: `INVOICE:${text(filename) || "upload"}:ROW:${row.rowNumber || ""}`, notes: "Stock received from invoice import", unitCost: costPerBase, createdBy, createdAt: now }, { session });
-                results.push({ rowNumber: row.rowNumber, productId: String(product._id), productCreated, batchId: String(batchResult.insertedId), baseQuantity, uom: authoritative.unit, conversionToBase: authoritative.conversionToBase });
+                results.push({ rowNumber: row.rowNumber, productId: String(product._id), productCreated, resolution: resolutionDecision, batchId: String(batchResult.insertedId), baseQuantity, uom: authoritative.unit, conversionToBase: authoritative.conversionToBase });
             }
         });
     } finally { await session.endSession(); }
