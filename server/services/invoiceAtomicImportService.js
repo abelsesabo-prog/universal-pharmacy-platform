@@ -6,7 +6,7 @@ import { COLLECTIONS } from "../../shared/schemas/index.js";
 import { validateProduct } from "../../shared/validators/index.js";
 import { resolveUom, validateUomConfiguration } from "../../shared/uom.js";
 import { MAX_INVOICE_ROWS } from "./invoiceImportService.js";
-import { invoiceProductIdentity, resolveExistingInvoiceProduct } from "./invoiceProductResolver.js";
+import { canonicalProductIdentity, resolveExistingInvoiceProduct } from "./invoiceProductResolver.js";
 
 function fail(message, statusCode = 400) { const error = new Error(message); error.statusCode = statusCode; throw error; }
 function text(value) { return String(value ?? "").trim(); }
@@ -82,14 +82,15 @@ export async function commitInvoiceAtomic({ tenantId, createdBy, branchId, rows,
 
                 let product = await resolveExistingInvoiceProduct(row, tenantId, session);
                 let productCreated = false;
-                const identityKey = invoiceProductIdentity(row);
                 if (product) {
+                    const identityKey = canonicalProductIdentity(product);
                     if (product.identityKey !== identityKey) {
                         await products.updateOne({ _id: product._id, tenantId, $or: [{ identityKey: { $exists: false } }, { identityKey: null }, { identityKey }] }, { $set: { identityKey, updatedAt: new Date() } }, { session });
                         product = await products.findOne({ _id: product._id, tenantId }, { session });
                     }
                 } else {
                     const candidate = buildNewProduct(row);
+                    const identityKey = canonicalProductIdentity(candidate);
                     const validation = validateProduct({ ...candidate, tenantId });
                     if (!validation.valid) fail(validation.error || `Invoice product row ${row.rowNumber || ""} is invalid.`);
                     const upsertResult = await products.updateOne(
