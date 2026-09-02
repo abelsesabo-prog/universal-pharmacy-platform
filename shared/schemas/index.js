@@ -3,7 +3,7 @@
 // Shared Data Schemas
 // ==========================================
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const COLLECTIONS = Object.freeze({
     TENANTS: "tenants",
@@ -39,7 +39,12 @@ export const PRODUCT_SCHEMA = Object.freeze({
         "registrationNumber",
         "baseUnit",
         "uomMatrix",
-        "barcode"
+        "barcode",
+        "stockQuantity",
+        "catalogInstalled",
+        "catalogSource",
+        "catalogFamilyId",
+        "catalogRxcui"
     ]
 });
 
