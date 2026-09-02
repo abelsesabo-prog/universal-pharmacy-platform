@@ -1,6 +1,7 @@
 import { ObjectId } from "mongodb";
 import { COLLECTIONS } from "../../shared/schemas/index.js";
 import { validateProduct } from "../../shared/validators/index.js";
+import { validateUomConfiguration } from "../../shared/uom.js";
 import { getCollection } from "./index.js";
 
 function assertTenantId(tenantId) {
@@ -10,6 +11,12 @@ function assertTenantId(tenantId) {
 }
 
 function normalizeProduct(data, tenantId) {
+    const uomValidation = validateUomConfiguration(data.baseUnit, data.uomMatrix);
+    if (!uomValidation.valid) {
+        const error = new Error(uomValidation.errors.join(" "));
+        error.statusCode = 400;
+        throw error;
+    }
     return {
         tenantId: assertTenantId(tenantId),
         brandName: String(data.brandName || "").trim(),
@@ -21,8 +28,8 @@ function normalizeProduct(data, tenantId) {
         manufacturer: data.manufacturer ?? null,
         registrationAgency: data.registrationAgency ?? null,
         registrationNumber: data.registrationNumber ?? null,
-        baseUnit: data.baseUnit ?? null,
-        uomMatrix: data.uomMatrix ?? null,
+        baseUnit: uomValidation.baseUnit,
+        uomMatrix: uomValidation.uomMatrix,
         barcode: data.barcode ?? null,
         stockQuantity: Number.isFinite(Number(data.stockQuantity)) ? Number(data.stockQuantity) : 0,
         catalogInstalled: data.catalogInstalled === true,
@@ -37,7 +44,9 @@ function normalizeProduct(data, tenantId) {
 export async function createProduct(data, tenantId) {
     const scopedTenantId = assertTenantId(tenantId);
     const validation = validateProduct({ ...data, tenantId: scopedTenantId });
-    if (!validation.valid) { const error = new Error(`Missing required fields: ${validation.missing.join(", ")}`); error.statusCode = 400; throw error; }
+    if (!validation.valid) { const error = new Error(validation.error || `Missing required fields: ${validation.missing.join(", ")}`); error.statusCode = 400; throw error; }
+    const uomValidation = validateUomConfiguration(data.baseUnit, data.uomMatrix);
+    if (!uomValidation.valid) { const error = new Error(uomValidation.errors.join(" ")); error.statusCode = 400; throw error; }
     const products = getCollection(COLLECTIONS.PRODUCTS);
     const product = normalizeProduct(data, scopedTenantId);
     const duplicate = await products.findOne({ tenantId: scopedTenantId, brandName: product.brandName, genericName: product.genericName, dosageForm: product.dosageForm, strength: product.strength });
@@ -65,7 +74,13 @@ export async function updateProduct(productId, data, tenantId) {
     if (Object.keys(updates).length === 0) { const error = new Error("No valid product fields were provided."); error.statusCode = 400; throw error; }
     const candidate = { ...existing, ...updates, tenantId: scopedTenantId };
     const validation = validateProduct(candidate);
-    if (!validation.valid) { const error = new Error(`Missing required fields: ${validation.missing.join(", ")}`); error.statusCode = 400; throw error; }
+    if (!validation.valid) { const error = new Error(validation.error || `Missing required fields: ${validation.missing.join(", ")}`); error.statusCode = 400; throw error; }
+    if (Object.prototype.hasOwnProperty.call(updates, "baseUnit") || Object.prototype.hasOwnProperty.call(updates, "uomMatrix")) {
+        const uomValidation = validateUomConfiguration(candidate.baseUnit, candidate.uomMatrix);
+        if (!uomValidation.valid) { const error = new Error(uomValidation.errors.join(" ")); error.statusCode = 400; throw error; }
+        updates.baseUnit = uomValidation.baseUnit;
+        updates.uomMatrix = uomValidation.uomMatrix;
+    }
     const duplicate = await products.findOne({ _id: { $ne: _id }, tenantId: scopedTenantId, brandName: String(candidate.brandName || "").trim(), genericName: String(candidate.genericName || "").trim(), dosageForm: String(candidate.dosageForm || "").trim(), strength: candidate.strength ?? null });
     if (duplicate) { const error = new Error("A matching product already exists."); error.statusCode = 409; throw error; }
     updates.updatedAt = new Date();
