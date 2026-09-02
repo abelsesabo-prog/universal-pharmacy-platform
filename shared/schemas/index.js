@@ -3,7 +3,7 @@
 // Shared Data Schemas
 // ==========================================
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export const COLLECTIONS = Object.freeze({
     TENANTS: "tenants",
@@ -23,72 +23,23 @@ export const COLLECTIONS = Object.freeze({
 });
 
 export const PRODUCT_SCHEMA = Object.freeze({
-    required: [
-        "tenantId",
-        "brandName",
-        "genericName",
-        "dosageForm",
-        "category"
-    ],
-
-    optional: [
-        "strength",
-        "strengthUnit",
-        "manufacturer",
-        "registrationAgency",
-        "registrationNumber",
-        "baseUnit",
-        "uomMatrix",
-        "barcode",
-        "stockQuantity",
-        "catalogInstalled",
-        "catalogSource",
-        "catalogFamilyId",
-        "catalogRxcui"
-    ]
+    required: ["tenantId", "brandName", "genericName", "dosageForm", "category"],
+    optional: ["strength", "strengthUnit", "manufacturer", "registrationAgency", "registrationNumber", "baseUnit", "uomMatrix", "barcode", "stockQuantity", "catalogInstalled", "catalogSource", "catalogFamilyId", "catalogRxcui"]
 });
 
 export const BATCH_SCHEMA = Object.freeze({
-    required: [
-        "tenantId",
-        "productId",
-        "batchNumber",
-        "quantity",
-        "expiryDate"
-    ],
+    required: ["tenantId", "productId", "batchNumber", "quantity", "expiryDate"],
+    optional: ["branchId", "costPrice", "sellingPrice", "location", "supplierId"]
+});
 
-    optional: [
-        "costPrice",
-        "sellingPrice",
-        "location",
-        "supplierId"
-    ]
+export const STOCK_MOVEMENT_TYPES = Object.freeze(["PURCHASE", "SALE", "RETURN", "ADJUSTMENT", "TRANSFER_IN", "TRANSFER_OUT", "DAMAGE", "EXPIRED"]);
+
+export const STOCK_MOVEMENT_SCHEMA = Object.freeze({
+    required: ["tenantId", "productId", "type", "quantity", "direction"],
+    optional: ["batchId", "branchId", "reference", "notes", "unitCost", "createdBy"]
 });
 
 export const SALE_SCHEMA = Object.freeze({
-    required: [
-        "tenantId",
-        "branchId",
-        "items",
-        "paymentMethod",
-        "total"
-    ],
-
-    optional: [
-        "customerId",
-        "cashierId",
-        "discount",
-        "timestamp"
-    ]
+    required: ["tenantId", "branchId", "items", "paymentMethod", "total"],
+    optional: ["customerId", "cashierId", "discount", "timestamp"]
 });
-
-export const STOCK_MOVEMENT_TYPES = Object.freeze([
-    "PURCHASE",
-    "SALE",
-    "RETURN",
-    "ADJUSTMENT",
-    "TRANSFER_IN",
-    "TRANSFER_OUT",
-    "DAMAGE",
-    "EXPIRED"
-]);
