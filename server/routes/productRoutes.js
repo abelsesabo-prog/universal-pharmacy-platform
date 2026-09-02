@@ -5,6 +5,7 @@
 
 import express from "express";
 import { requireAuth, requireRole } from "../middleware/auth.js";
+import { requireTenant } from "../middleware/tenant.js";
 
 import {
     createProductController,
@@ -16,8 +17,8 @@ import {
 
 const router = express.Router();
 
-// Product data is private application data: every operation requires an authenticated identity.
-router.use(requireAuth);
+// Product operations require both an authenticated identity and tenant context.
+router.use(requireAuth, requireTenant);
 
 router.post("/", requireRole("admin", "manager"), createProductController);
 router.get("/", listProductsController);
