@@ -19,6 +19,8 @@ async function ensureSecurityIndexes(db) {
     await db.collection(COLLECTIONS.SALES).createIndex({ tenantId: 1, branchId: 1, createdAt: -1 }, { name: "idx_sale_tenant_branch_date" });
     await db.collection(COLLECTIONS.SALE_ITEMS).createIndex({ tenantId: 1, saleId: 1 }, { name: "idx_sale_item_tenant_sale" });
     await db.collection(COLLECTIONS.AUDIT_LOGS).createIndex({ tenantId: 1, createdAt: -1 }, { name: "idx_audit_tenant_date" });
+    await db.collection(COLLECTIONS.OFFLINE_EVENTS).createIndex({ tenantId: 1, eventId: 1 }, { unique: true, name: "uq_offline_event_tenant_event" });
+    await db.collection(COLLECTIONS.OFFLINE_EVENTS).createIndex({ tenantId: 1, deviceId: 1, status: 1, occurredAt: 1 }, { name: "idx_offline_event_sync_queue" });
 }
 
 async function connectMongoDB() {
@@ -30,21 +32,13 @@ async function connectMongoDB() {
         await ensureSecurityIndexes(database);
         console.log("MongoDB connected successfully.");
         return database;
-    } catch (error) {
-        console.error("MongoDB connection failed:", error.message);
-        throw error;
-    }
+    } catch (error) { console.error("MongoDB connection failed:", error.message); throw error; }
 }
 
 async function disconnectMongoDB() {
-    try {
-        if (client) await client.close();
-        client = null;
-        database = null;
-        console.log("MongoDB disconnected.");
-    } catch (error) { console.error("MongoDB disconnect failed:", error.message); }
+    try { if (client) await client.close(); client = null; database = null; console.log("MongoDB disconnected."); }
+    catch (error) { console.error("MongoDB disconnect failed:", error.message); }
 }
-
 function getDatabase() { if (!database) throw new Error("MongoDB is not connected."); return database; }
 function getMongoClient() { if (!client) throw new Error("MongoDB is not connected."); return client; }
 export { connectMongoDB, disconnectMongoDB, getDatabase, getMongoClient };
