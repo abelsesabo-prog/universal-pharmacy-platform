@@ -21,6 +21,8 @@ async function ensureSecurityIndexes(db) {
     await db.collection(COLLECTIONS.AUDIT_LOGS).createIndex({ tenantId: 1, createdAt: -1 }, { name: "idx_audit_tenant_date" });
     await db.collection(COLLECTIONS.OFFLINE_EVENTS).createIndex({ tenantId: 1, eventId: 1 }, { unique: true, name: "uq_offline_event_tenant_event" });
     await db.collection(COLLECTIONS.OFFLINE_EVENTS).createIndex({ tenantId: 1, deviceId: 1, status: 1, occurredAt: 1 }, { name: "idx_offline_event_sync_queue" });
+    await db.collection(COLLECTIONS.TMDA_QUARANTINES).createIndex({ tenantId: 1, batchId: 1, status: 1 }, { name: "idx_tmda_tenant_batch_status" });
+    await db.collection(COLLECTIONS.TMDA_QUARANTINES).createIndex({ tenantId: 1, productId: 1, quarantineDate: -1 }, { name: "idx_tmda_tenant_product_date" });
 }
 
 async function connectMongoDB() {
