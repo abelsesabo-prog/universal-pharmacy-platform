@@ -1,1 +1,1773 @@
+<!DOCTYPE html>
+<html lang="en">
 
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Universal Pharmacy Platform</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            color: #1f2937;
+        }
+
+        header {
+            background: #1e40af;
+            color: white;
+            padding: 20px;
+        }
+
+        header h1 {
+            margin: 0;
+        }
+
+        #status {
+            margin-top: 8px;
+            opacity: 0.9;
+        }
+
+        main {
+            max-width: 1200px;
+            margin: auto;
+            padding: 20px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns:
+                repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow:
+                0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        h2 {
+            margin-top: 0;
+        }
+
+        form {
+            display: grid;
+            gap: 12px;
+        }
+
+        input,
+        select,
+        button {
+            width: 100%;
+            padding: 10px;
+            font-size: 15px;
+        }
+
+        input {
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+        }
+
+        button {
+            border: none;
+            border-radius: 6px;
+            background: #2563eb;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        .message {
+            min-height: 20px;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th,
+        td {
+            padding: 10px;
+            border-bottom: 1px solid #e5e7eb;
+            text-align: left;
+        }
+
+        th {
+            background: #f8fafc;
+        }
+
+        .table-card {
+            margin-top: 20px;
+        }
+
+        .empty {
+            text-align: center;
+            color: #64748b;
+            padding: 25px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>Universal Pharmacy Platform</h1>
+
+        <div id="status">
+            Checking backend connection...
+        </div>
+    </header>
+
+
+    <main>
+
+        <div class="grid">
+
+            <!-- PRODUCT FORM -->
+
+            <section class="card">
+
+                <h2>Add Product</h2>
+
+                <form id="productForm">
+
+                    <input
+                        id="brandName"
+                        type="text"
+                        placeholder="Brand name"
+                        required
+                    >
+
+                    <input
+                        id="genericName"
+                        type="text"
+                        placeholder="Generic name"
+                        required
+                    >
+
+                    <input
+                        id="dosageForm"
+                        type="text"
+                        placeholder="Dosage form"
+                        required
+                    >
+
+                    <input
+                        id="category"
+                        type="text"
+                        placeholder="Category"
+                        required
+                    >
+
+                    <input
+                        id="strength"
+                        type="text"
+                        placeholder="Strength (optional)"
+                    >
+
+                    <button type="submit">
+                        Save Product
+                    </button>
+
+                </form>
+
+                <div
+                    id="productMessage"
+                    class="message"
+                ></div>
+
+            </section>
+
+
+            <!-- BATCH FORM -->
+
+            <section class="card">
+
+                <h2>Add Stock Batch</h2>
+
+                <form id="batchForm">
+
+                    <select
+                        id="productId"
+                        required
+                    >
+                        <option value="">
+                            Select product
+                        </option>
+                    </select>
+
+                    <input
+                        id="batchNumber"
+                        type="text"
+                        placeholder="Batch number"
+                        required
+                    >
+
+                    <input
+                        id="quantity"
+                        type="number"
+                        min="0"
+                        placeholder="Quantity"
+                        required
+                    >
+
+                    <input
+                        id="expiryDate"
+                        type="date"
+                        required
+                    >
+
+                    <input
+                        id="costPrice"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Cost price (optional)"
+                    >
+
+                    <input
+                        id="sellingPrice"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Selling price (optional)"
+                    >
+
+                    <input
+                        id="location"
+                        type="text"
+                        placeholder="Storage location (optional)"
+                    >
+
+                    <button type="submit">
+                        Add Stock
+                    </button>
+
+                </form>
+
+                <div
+                    id="batchMessage"
+                    class="message"
+                ></div>
+
+            </section>
+
+        </div>
+
+
+        <!-- PRODUCT TABLE -->
+
+        <section class="card table-card">
+
+            <h2>Products</h2>
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>Brand</th>
+                        <th>Generic</th>
+                        <th>Form</th>
+                        <th>Category</th>
+                        <th>Strength</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+
+                <tbody id="productTableBody">
+
+                    <tr>
+                        <td
+                            colspan="6"
+                            class="empty"
+                        >
+                            Loading products...
+                        </td>
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </section>
+
+
+        <!-- BATCH TABLE -->
+
+        <section class="card table-card">
+
+            <h2>Stock Batches</h2>
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>Batch</th>
+                        <th>Product</th>
+                        <th>Quantity</th>
+                        <th>Expiry</th>
+                        <th>Cost</th>
+                        <th>Price</th>
+                        <th>Location</th>
+                    </tr>
+                </thead>
+
+                <tbody id="batchTableBody">
+
+                    <tr>
+                        <td
+                            colspan="7"
+                            class="empty"
+                        >
+                            Loading batches...
+                        </td>
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </section>
+<!-- ========================================== -->
+<!-- STOCK MOVEMENTS -->
+<!-- ========================================== -->
+
+<section class="card">
+    <h2>Create Stock Movement</h2>
+
+    <form id="stockMovementForm">
+
+        <select
+            id="movementProductId"
+            required
+        >
+            <option value="">
+                Select product
+            </option>
+        </select>
+
+        <select
+            id="movementBatchId"
+            required
+            disabled
+        >
+            <option value="">
+                Select product first
+            </option>
+        </select>
+
+        <select
+            id="movementType"
+            required
+        >
+            <option value="">
+                Select movement type
+            </option>
+
+            <option value="PURCHASE">
+                PURCHASE
+            </option>
+
+            <option value="SALE">
+                SALE
+            </option>
+        </select>
+
+        <input
+            id="movementQuantity"
+            type="number"
+            min="1"
+            step="1"
+            placeholder="Quantity"
+            required
+        >
+
+        <input
+            id="movementReference"
+            type="text"
+            placeholder="Reference (optional)"
+        >
+
+        <textarea
+            id="movementNotes"
+            placeholder="Notes (optional)"
+        ></textarea>
+
+        <button
+            type="submit"
+        >
+            Save Movement
+        </button>
+
+    </form>
+
+    <p
+        id="movementMessage"
+        class="message"
+    ></p>
+</section>
+
+
+<section class="card table-card">
+
+    <h2>Stock Movements</h2>
+
+    <table>
+
+        <thead>
+
+            <tr>
+
+                <th>Product</th>
+
+                <th>Batch</th>
+
+                <th>Type</th>
+
+                <th>Quantity</th>
+
+                <th>Reference</th>
+
+                <th>Notes</th>
+
+                <th>Date</th>
+
+            </tr>
+
+        </thead>
+
+
+        <tbody
+            id="movementTableBody"
+        >
+
+            <tr>
+
+                <td
+                    colspan="7"
+                    class="empty"
+                >
+                    Loading stock movements...
+                </td>
+
+            </tr>
+
+        </tbody>
+
+    </table>
+
+</section>
+
+    </main>
+
+
+    <script>
+
+        // ==========================================
+        // BACKEND HEALTH CHECK
+        // ==========================================
+
+        async function checkBackend() {
+
+            const statusElement =
+                document.getElementById("status");
+
+            try {
+
+                const response =
+                    await fetch("/api/health");
+
+                const data =
+                    await response.json();
+
+                if (data.success) {
+
+                    statusElement.textContent =
+                        "Backend connected successfully.";
+
+                } else {
+
+                    statusElement.textContent =
+                        "Backend responded, but reported a problem.";
+
+                }
+
+            } catch (error) {
+
+                statusElement.textContent =
+                    "Could not connect to the backend.";
+
+            }
+        }
+
+
+        // ==========================================
+// LOAD PRODUCTS
+// ==========================================
+
+async function loadProducts() {
+
+    const tableBody =
+        document.getElementById(
+            "productTableBody"
+        );
+
+    const productSelect =
+        document.getElementById(
+            "productId"
+        );
+
+    const movementProductSelect =
+        document.getElementById(
+            "movementProductId"
+        );
+
+
+    try {
+
+        const response =
+            await fetch("/api/products");
+
+        const data =
+            await response.json();
+
+
+        if (!data.success) {
+
+            throw new Error(
+                data.error ||
+                "Failed to load products."
+            );
+
+        }
+
+
+        const products =
+            data.products || [];
+
+
+        tableBody.innerHTML = "";
+
+
+        productSelect.innerHTML =
+            '<option value="">Select product</option>';
+
+
+        movementProductSelect.innerHTML =
+            '<option value="">Select product</option>';
+
+
+        if (products.length === 0) {
+
+            tableBody.innerHTML = `
+                <tr>
+                    <td
+                        colspan="5"
+                        class="empty"
+                    >
+                        No products found.
+                    </td>
+                </tr>
+            `;
+
+            return;
+
+        }
+
+
+        for (
+            const product
+            of products
+        ) {
+
+            const row =
+                document.createElement(
+                    "tr"
+                );
+
+
+            row.innerHTML = `
+                <td>
+                    ${product.brandName || ""}
+                </td>
+
+                <td>
+                    ${product.genericName || ""}
+                </td>
+
+                <td>
+                    ${product.dosageForm || ""}
+                </td>
+
+                <td>
+                    ${product.category || ""}
+                </td>
+
+                <td>
+                    ${product.strength || ""}
+                </td>
+
+<td>
+    <button
+        type="button"
+        class="delete-product-button"
+        data-product-id="${product._id}"
+        data-product-name="${product.brandName || product.genericName || "this product"}"
+    >
+        Delete
+    </button>
+</td>
+            `;
+
+            tableBody.appendChild(
+                row
+            );
+
+
+            const batchOption =
+                document.createElement(
+                    "option"
+                );
+
+
+            batchOption.value =
+                product._id;
+
+
+            batchOption.textContent =
+                `${product.brandName} - ${product.genericName}`;
+
+
+            productSelect.appendChild(
+                batchOption
+            );
+
+
+            const movementOption =
+                document.createElement(
+                    "option"
+                );
+
+
+            movementOption.value =
+                product._id;
+
+
+            movementOption.textContent =
+                `${product.brandName} - ${product.genericName}`;
+
+
+            movementProductSelect.appendChild(
+                movementOption
+            );
+
+        }
+
+    } catch (error) {
+
+        tableBody.innerHTML = `
+            <tr>
+                <td
+                    colspan="5"
+                    class="empty"
+                >
+                    Failed to load products.
+                </td>
+            </tr>
+        `;
+
+    }
+
+}
+
+
+  // ==========================================
+// LOAD BATCHES
+// ==========================================
+
+async function loadBatches() {
+
+    const tableBody =
+        document.getElementById(
+            "batchTableBody"
+        );
+
+    try {
+
+        const [
+            batchResponse,
+            productResponse
+        ] = await Promise.all([
+            fetch("/api/batches"),
+            fetch("/api/products")
+        ]);
+
+
+        const batchData =
+            await batchResponse.json();
+
+        const productData =
+            await productResponse.json();
+
+
+        if (!batchData.success) {
+            throw new Error(
+                batchData.error ||
+                "Failed to load batches."
+            );
+        }
+
+
+        if (!productData.success) {
+            throw new Error(
+                productData.error ||
+                "Failed to load products."
+            );
+        }
+
+
+        const batches =
+            batchData.batches || [];
+
+        const products =
+            productData.products || [];
+
+
+        const productLookup =
+            new Map();
+
+
+        for (const product of products) {
+
+            productLookup.set(
+                String(product._id),
+                product
+            );
+        }
+
+
+        tableBody.innerHTML = "";
+
+
+        if (batches.length === 0) {
+
+            tableBody.innerHTML = `
+                <tr>
+                    <td
+                        colspan="7"
+                        class="empty"
+                    >
+                        No stock batches found.
+                    </td>
+                </tr>
+            `;
+
+            return;
+        }
+
+
+        for (const batch of batches) {
+
+            const row =
+                document.createElement("tr");
+
+
+            const product =
+                productLookup.get(
+                    String(batch.productId)
+                );
+
+
+            const productName =
+                product
+                    ? [
+                        product.brandName,
+                        product.genericName
+                    ]
+                        .filter(Boolean)
+                        .join(" — ")
+                    : "Unknown Product";
+
+
+            const expiryDate =
+                batch.expiryDate
+                    ? new Date(
+                        batch.expiryDate
+                    )
+                        .toLocaleDateString()
+                    : "";
+
+
+            row.innerHTML = `
+                <td>${batch.batchNumber || ""}</td>
+                <td>${productName}</td>
+                <td>${batch.quantity ?? ""}</td>
+                <td>${expiryDate}</td>
+                <td>${batch.costPrice ?? ""}</td>
+                <td>${batch.sellingPrice ?? ""}</td>
+                <td>${batch.location || ""}</td>
+            `;
+
+
+            tableBody.appendChild(row);
+        }
+
+    } catch (error) {
+
+        tableBody.innerHTML = `
+            <tr>
+                <td
+                    colspan="7"
+                    class="empty"
+                >
+                    Failed to load stock batches.
+                </td>
+            </tr>
+        `;
+
+        console.error(
+            "Failed to load batches:",
+            error
+        );
+    }
+}
+
+
+// ==========================================
+// LOAD STOCK MOVEMENTS
+// ==========================================
+
+async function loadStockMovements() {
+
+    const tableBody =
+        document.getElementById(
+            "movementTableBody"
+        );
+
+    try {
+
+        const [
+            movementsResponse,
+            productsResponse,
+            batchesResponse
+        ] =
+            await Promise.all([
+                fetch(
+                    "/api/stock-movements"
+                ),
+                fetch(
+                    "/api/products"
+                ),
+                fetch(
+                    "/api/batches"
+                )
+            ]);
+
+
+        const movementsData =
+            await movementsResponse.json();
+
+        const productsData =
+            await productsResponse.json();
+
+        const batchesData =
+            await batchesResponse.json();
+
+
+        if (
+            !movementsData.success
+        ) {
+
+            throw new Error(
+                movementsData.error ||
+                "Failed to load stock movements."
+            );
+
+        }
+
+
+        const movements =
+            movementsData.movements || [];
+
+        const products =
+            productsData.products || [];
+
+        const batches =
+            batchesData.batches || [];
+
+
+        // ==========================================
+        // PRODUCT ID → PRODUCT NAME
+        // ==========================================
+
+        const productMap =
+            new Map();
+
+
+        for (
+            const product
+            of products
+        ) {
+
+            const productId =
+                product._id?.toString() ||
+                "";
+
+
+            const productName =
+                [
+                    product.brandName,
+                    product.genericName
+                ]
+                    .filter(Boolean)
+                    .join(" — ");
+
+
+            productMap.set(
+                productId,
+                productName
+            );
+
+        }
+
+
+        // ==========================================
+        // BATCH ID → BATCH NUMBER
+        // ==========================================
+
+        const batchMap =
+            new Map();
+
+
+        for (
+            const batch
+            of batches
+        ) {
+
+            const batchId =
+                batch._id?.toString() ||
+                "";
+
+
+            const batchNumber =
+                batch.batchNumber ||
+                "Unknown batch";
+
+
+            batchMap.set(
+                batchId,
+                batchNumber
+            );
+
+        }
+
+
+        tableBody.innerHTML = "";
+
+
+        if (
+            movements.length === 0
+        ) {
+
+            tableBody.innerHTML = `
+                <tr>
+                    <td
+                        colspan="7"
+                        class="empty"
+                    >
+                        No stock movements found.
+                    </td>
+                </tr>
+            `;
+
+            return;
+
+        }
+
+
+        for (
+            const movement
+            of movements
+        ) {
+
+            const row =
+                document.createElement(
+                    "tr"
+                );
+
+
+            const movementDate =
+                movement.createdAt
+                    ? new Date(
+                        movement.createdAt
+                    ).toLocaleString()
+                    : "";
+
+
+            const productId =
+                movement.productId?.toString() ||
+                "";
+
+
+            const productName =
+                productMap.get(
+                    productId
+                ) ||
+                "Unknown product";
+
+
+            const batchId =
+                movement.batchId?.toString() ||
+                "";
+
+
+            const batchName =
+                batchMap.get(
+                    batchId
+                ) ||
+                "";
+
+
+            row.innerHTML = `
+                <td>
+                    ${productName}
+                </td>
+
+                <td>
+                    ${batchName}
+                </td>
+
+                <td>
+                    ${movement.type || ""}
+                </td>
+
+                <td>
+                    ${movement.quantity ?? ""}
+                </td>
+
+                <td>
+                    ${movement.reference || ""}
+                </td>
+
+                <td>
+                    ${movement.notes || ""}
+                </td>
+
+                <td>
+                    ${movementDate}
+                </td>
+            `;
+
+
+            tableBody.appendChild(
+                row
+            );
+
+        }
+
+    } catch (error) {
+
+        tableBody.innerHTML = `
+            <tr>
+                <td
+                    colspan="7"
+                    class="empty"
+                >
+                    Failed to load stock movements.
+                </td>
+            </tr>
+        `;
+
+    }
+
+}
+
+// ==========================================
+// LOAD BATCHES FOR MOVEMENT
+// ==========================================
+
+async function loadMovementBatches(
+    productId
+) {
+
+    const batchSelect =
+        document.getElementById(
+            "movementBatchId"
+        );
+
+
+    batchSelect.innerHTML =
+        '<option value="">Loading batches...</option>';
+
+
+    batchSelect.disabled = true;
+
+
+    if (!productId) {
+
+        batchSelect.innerHTML =
+            '<option value="">Select product first</option>';
+
+        return;
+
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/batches?productId=${encodeURIComponent(productId)}`
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!data.success) {
+
+            throw new Error(
+                data.error ||
+                "Failed to load batches."
+            );
+
+        }
+
+
+        const batches =
+            data.batches || [];
+
+
+        batchSelect.innerHTML =
+            '<option value="">Select batch</option>';
+
+
+        if (batches.length === 0) {
+
+            batchSelect.innerHTML =
+                '<option value="">No batches available</option>';
+
+            return;
+
+        }
+
+
+        for (
+            const batch
+            of batches
+        ) {
+
+            const option =
+                document.createElement(
+                    "option"
+                );
+
+
+            option.value =
+                batch._id;
+
+
+            const quantity =
+                batch.quantity ?? 0;
+
+
+            const expiryDate =
+                batch.expiryDate
+                    ? new Date(
+                        batch.expiryDate
+                    ).toLocaleDateString()
+                    : "No expiry";
+
+
+            option.textContent =
+                `${batch.batchNumber} | Stock: ${quantity} | Exp: ${expiryDate}`;
+
+
+            batchSelect.appendChild(
+                option
+            );
+
+        }
+
+
+        batchSelect.disabled = false;
+
+    } catch (error) {
+
+        batchSelect.innerHTML =
+            '<option value="">Failed to load batches</option>';
+
+    }
+
+}
+
+
+// ==========================================
+// MOVEMENT PRODUCT CHANGE
+// ==========================================
+
+document
+    .getElementById(
+        "movementProductId"
+    )
+    .addEventListener(
+        "change",
+        async function () {
+
+            await loadMovementBatches(
+                this.value
+            );
+
+        }
+    );
+
+// ==========================================
+// CREATE STOCK MOVEMENT
+// ==========================================
+
+document
+    .getElementById(
+        "stockMovementForm"
+    )
+    .addEventListener(
+        "submit",
+        async function (event) {
+
+            event.preventDefault();
+
+
+            const message =
+                document.getElementById(
+                    "movementMessage"
+                );
+
+
+            const productId =
+                document.getElementById(
+                    "movementProductId"
+                ).value;
+
+
+            const batchId =
+                document.getElementById(
+                    "movementBatchId"
+                ).value;
+
+
+            const type =
+                document.getElementById(
+                    "movementType"
+                ).value;
+
+
+            const quantity =
+                Number(
+                    document.getElementById(
+                        "movementQuantity"
+                    ).value
+                );
+
+
+            const reference =
+                document.getElementById(
+                    "movementReference"
+                ).value
+                .trim();
+
+
+            const notes =
+                document.getElementById(
+                    "movementNotes"
+                ).value
+                .trim();
+
+
+            message.textContent =
+                "Saving stock movement...";
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        "/api/stock-movements",
+                        {
+                            method: "POST",
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body:
+                                JSON.stringify(
+                                    {
+                                        productId,
+                                        batchId,
+                                        type,
+                                        quantity,
+                                        reference,
+                                        notes
+                                    }
+                                )
+                        }
+                    );
+
+
+                const data =
+                    await response.json();
+
+
+                if (!data.success) {
+
+                    throw new Error(
+                        data.error ||
+                        "Failed to save stock movement."
+                    );
+
+                }
+
+
+                message.textContent =
+                    "Stock movement saved successfully.";
+
+
+                document
+                    .getElementById(
+                        "stockMovementForm"
+                    )
+                    .reset();
+
+
+                const batchSelect =
+                    document.getElementById(
+                        "movementBatchId"
+                    );
+
+
+                batchSelect.disabled =
+                    true;
+
+
+                batchSelect.innerHTML =
+                    '<option value="">Select product first</option>';
+
+
+                await loadBatches();
+
+                await loadStockMovements();
+
+
+                setTimeout(
+                    function () {
+
+                        message.textContent =
+                            "";
+
+                    },
+                    3000
+                );
+
+            } catch (error) {
+
+                message.textContent =
+                    error.message ||
+                    "Failed to save stock movement.";
+
+            }
+
+        }
+    );
+
+
+
+        // ==========================================
+        // CREATE PRODUCT
+        // ==========================================
+
+        document
+            .getElementById("productForm")
+            .addEventListener(
+                "submit",
+                async function (event) {
+
+                    event.preventDefault();
+
+
+                    const message =
+                        document.getElementById(
+                            "productMessage"
+                        );
+
+
+                    const product = {
+
+                        brandName:
+                            document
+                                .getElementById(
+                                    "brandName"
+                                )
+                                .value,
+
+                        genericName:
+                            document
+                                .getElementById(
+                                    "genericName"
+                                )
+                                .value,
+
+                        dosageForm:
+                            document
+                                .getElementById(
+                                    "dosageForm"
+                                )
+                                .value,
+
+                        category:
+                            document
+                                .getElementById(
+                                    "category"
+                                )
+                                .value,
+
+                        strength:
+                            document
+                                .getElementById(
+                                    "strength"
+                                )
+                                .value || null
+                    };
+
+
+                    message.textContent =
+                        "Saving product...";
+
+
+                    try {
+
+                        const response =
+                            await fetch(
+                                "/api/products",
+                                {
+                                    method: "POST",
+
+                                    headers: {
+                                        "Content-Type":
+                                            "application/json"
+                                    },
+
+                                    body:
+                                        JSON.stringify(
+                                            product
+                                        )
+                                }
+                            );
+
+
+                        const data =
+                            await response.json();
+
+
+                        if (!response.ok) {
+                            throw new Error(
+                                data.error ||
+                                "Failed to save product."
+                            );
+                        }
+
+
+                        message.textContent =
+                            "Product saved successfully.";
+
+
+                        event.target.reset();
+
+
+                        await loadProducts();
+
+                    } catch (error) {
+
+                        message.textContent =
+                            error.message;
+
+                    }
+
+                }
+            );
+
+        // ==========================================
+        // DELETE PRODUCT
+        // ==========================================
+
+        document
+            .getElementById(
+                "productTableBody"
+            )
+            .addEventListener(
+                "click",
+                async function (event) {
+
+                    const button =
+                        event.target.closest(
+                            ".delete-product-button"
+                        );
+
+                    if (!button) {
+                        return;
+                    }
+
+
+                    const productId =
+                        button.dataset.productId;
+
+                    const productName =
+                        button.dataset.productName;
+
+
+                    const confirmed =
+                        window.confirm(
+                            `Delete "${productName}"?`
+                        );
+
+
+                    if (!confirmed) {
+                        return;
+                    }
+
+
+                    button.disabled =
+                        true;
+
+                    button.textContent =
+                        "Deleting...";
+
+
+                    try {
+
+                        const response =
+                            await fetch(
+                                `/api/products/${productId}`,
+                                {
+                                    method: "DELETE"
+                                }
+                            );
+
+
+                        const data =
+                            await response.json();
+
+
+                        if (!response.ok) {
+
+                            throw new Error(
+                                data.error ||
+                                "Failed to delete product."
+                            );
+
+                        }
+
+
+                        await loadProducts();
+
+
+                        const message =
+                            document.getElementById(
+                                "productMessage"
+                            );
+
+
+                        message.textContent =
+                            "Product deleted successfully.";
+
+                    } catch (error) {
+
+                        button.disabled =
+                            false;
+
+                        button.textContent =
+                            "Delete";
+
+
+                        const message =
+                            document.getElementById(
+                                "productMessage"
+                            );
+
+
+                        message.textContent =
+                            error.message;
+
+                    }
+
+                }
+            );
+
+
+        // ==========================================
+        // CREATE BATCH
+        // ==========================================
+
+        document
+            .getElementById("batchForm")
+            .addEventListener(
+                "submit",
+                async function (event) {
+
+                    event.preventDefault();
+
+
+                    const message =
+                        document.getElementById(
+                            "batchMessage"
+                        );
+
+
+                    const batch = {
+
+                        productId:
+                            document
+                                .getElementById(
+                                    "productId"
+                                )
+                                .value,
+
+                        batchNumber:
+                            document
+                                .getElementById(
+                                    "batchNumber"
+                                )
+                                .value,
+
+                        quantity:
+                            document
+                                .getElementById(
+                                    "quantity"
+                                )
+                                .value,
+
+                        expiryDate:
+                            document
+                                .getElementById(
+                                    "expiryDate"
+                                )
+                                .value,
+
+                        costPrice:
+                            document
+                                .getElementById(
+                                    "costPrice"
+                                )
+                                .value || null,
+
+                        sellingPrice:
+                            document
+                                .getElementById(
+                                    "sellingPrice"
+                                )
+                                .value || null,
+
+                        location:
+                            document
+                                .getElementById(
+                                    "location"
+                                )
+                                .value || null
+                    };
+
+
+                    message.textContent =
+                        "Adding stock...";
+
+
+                    try {
+
+                        const response =
+                            await fetch(
+                                "/api/batches",
+                                {
+                                    method: "POST",
+
+                                    headers: {
+                                        "Content-Type":
+                                            "application/json"
+                                    },
+
+                                    body:
+                                        JSON.stringify(
+                                            batch
+                                        )
+                                }
+                            );
+
+
+                        const data =
+                            await response.json();
+
+
+                        if (!response.ok) {
+                            throw new Error(
+                                data.error ||
+                                "Failed to add stock."
+                            );
+                        }
+
+
+                        message.textContent =
+                            "Stock batch added successfully.";
+
+
+                        event.target.reset();
+
+
+                        await loadBatches();
+
+                    } catch (error) {
+
+                        message.textContent =
+                            error.message;
+
+                    }
+
+                }
+            );
+
+
+        // ==========================================
+        // INITIAL LOAD
+        // ==========================================
+
+        checkBackend();
+
+        loadProducts();
+
+        loadBatches();
+
+        loadStockMovements();
+
+    </script>
+
+</body>
+
+</html>
