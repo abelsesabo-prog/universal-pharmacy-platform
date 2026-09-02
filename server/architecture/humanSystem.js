@@ -42,6 +42,24 @@ export const HUMAN_SYSTEM_ANATOMY = Object.freeze([
         purpose: "Owns the lifecycle record for quarantined stock and its authorised release or disposal disposition."
     },
     {
+        id: "clinical-safety-organ",
+        layer: HUMAN_SYSTEM_LAYERS.ORGAN,
+        name: "Clinical Safety Organ",
+        purpose: "Coordinates supplied allergy and interaction evidence before medication-related workflow proceeds."
+    },
+    {
+        id: "clinical-safety-tissue",
+        layer: HUMAN_SYSTEM_LAYERS.TISSUE,
+        name: "Clinical Safety Evidence Tissue",
+        purpose: "Connects canonical product ingredients with patient allergy facts and authoritative interaction rules."
+    },
+    {
+        id: "interaction-finding-cell",
+        layer: HUMAN_SYSTEM_LAYERS.CELL,
+        name: "Interaction Finding Cell",
+        purpose: "Owns one explainable safety finding without duplicating product or patient truth."
+    },
+    {
         id: "inventory-tissue",
         layer: HUMAN_SYSTEM_LAYERS.TISSUE,
         name: "Inventory Tissue",
