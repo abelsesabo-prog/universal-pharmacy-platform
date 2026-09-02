@@ -12,8 +12,16 @@ const config = {
     },
 
     security: {
-        jwtSecret: process.env.JWT_SECRET || ""
+        jwtSecret: process.env.JWT_SECRET || "",
+        corsOrigins: (process.env.CORS_ORIGIN || "")
+            .split(",")
+            .map((origin) => origin.trim())
+            .filter(Boolean)
     }
 };
+
+if (config.app.environment === "production" && !config.security.jwtSecret) {
+    throw new Error("JWT_SECRET is required in production.");
+}
 
 export default config;
