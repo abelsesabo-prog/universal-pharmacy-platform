@@ -1,6 +1,7 @@
 import { ObjectId } from "mongodb";
 import { getCollection } from "./index.js";
 import { getMongoClient } from "../database/mongo.js";
+import { ensureDefaultBranch, requireActiveBranch } from "./branchService.js";
 import { COLLECTIONS, STOCK_MOVEMENT_TYPES } from "../../shared/schemas/index.js";
 
 function fail(message, statusCode = 400) { const error = new Error(message); error.statusCode = statusCode; throw error; }
@@ -14,6 +15,9 @@ export async function createBatch({ tenantId, productId, batchNumber, quantity, 
     const expiry = futureOrToday(expiryDate);
     const number = String(batchNumber || "").trim();
     if (!number) fail("Batch number is required.");
+    const branch = String(branchId || "").trim();
+    const activeBranch = branch || (await ensureDefaultBranch(tenantId)).branchId;
+    await requireActiveBranch(tenantId, activeBranch);
     const cost = costPrice == null || costPrice === "" ? null : Number(costPrice);
     const price = sellingPrice == null || sellingPrice === "" ? null : Number(sellingPrice);
     if (cost != null && (!Number.isFinite(cost) || cost < 0)) fail("Cost price must be zero or greater.");
@@ -31,10 +35,10 @@ export async function createBatch({ tenantId, productId, batchNumber, quantity, 
             const product = await products.findOne({ _id: productObjectId, tenantId }, { session });
             if (!product) fail("Product not found in this tenant.", 404);
             const now = new Date();
-            const batch = { tenantId, productId: productObjectId, batchNumber: number, quantity: qty, expiryDate: expiry, branchId: branchId ? String(branchId).trim() : null, costPrice: cost, sellingPrice: price, location: location ? String(location).trim() : null, supplierId: supplierId ? String(supplierId).trim() : null, createdBy, createdAt: now, updatedAt: now };
+            const batch = { tenantId, productId: productObjectId, batchNumber: number, quantity: qty, expiryDate: expiry, branchId: activeBranch, costPrice: cost, sellingPrice: price, location: location ? String(location).trim() : null, supplierId: supplierId ? String(supplierId).trim() : null, createdBy, createdAt: now, updatedAt: now };
             const result = await batches.insertOne(batch, { session });
             await products.updateOne({ _id: productObjectId, tenantId }, { $inc: { stockQuantity: qty }, $set: { updatedAt: now } }, { session });
-            await movements.insertOne({ tenantId, productId: productObjectId, batchId: result.insertedId, type: "PURCHASE", quantity: qty, direction: "IN", branchId: batch.branchId, reference: `BATCH:${result.insertedId}`, notes: "Initial batch stock received", unitCost: cost, createdBy, createdAt: now }, { session });
+            await movements.insertOne({ tenantId, productId: productObjectId, batchId: result.insertedId, type: "PURCHASE", quantity: qty, direction: "IN", branchId: activeBranch, reference: `BATCH:${result.insertedId}`, notes: "Initial batch stock received", unitCost: cost, createdBy, createdAt: now }, { session });
             created = { ...batch, _id: result.insertedId };
         });
         return created;
@@ -65,6 +69,8 @@ export async function recordStockAdjustment({ tenantId, productId, type = "ADJUS
     if (!["IN", "OUT"].includes(dir)) fail("Direction must be IN or OUT.");
     const productObjectId = objectId(productId, "product ID");
     const batchObjectId = batchId ? objectId(batchId, "batch ID") : null;
+    const activeBranch = String(branchId || "").trim() || (await ensureDefaultBranch(tenantId)).branchId;
+    await requireActiveBranch(tenantId, activeBranch);
     const delta = dir === "IN" ? qty : -qty;
     const client = getMongoClient();
     const db = client.db();
@@ -80,10 +86,10 @@ export async function recordStockAdjustment({ tenantId, productId, type = "ADJUS
             const now = new Date();
             await products.updateOne({ _id: productObjectId, tenantId }, { $inc: { stockQuantity: delta }, $set: { updatedAt: now } }, { session });
             if (batchObjectId) {
-                const batchResult = await db.collection(COLLECTIONS.BATCHES).updateOne({ _id: batchObjectId, tenantId, productId: productObjectId, ...(dir === "OUT" ? { quantity: { $gte: qty } } : {}) }, { $inc: { quantity: delta }, $set: { updatedAt: now } }, { session });
+                const batchResult = await db.collection(COLLECTIONS.BATCHES).updateOne({ _id: batchObjectId, tenantId, productId: productObjectId, branchId: activeBranch, ...(dir === "OUT" ? { quantity: { $gte: qty } } : {}) }, { $inc: { quantity: delta }, $set: { updatedAt: now } }, { session });
                 if (!batchResult.matchedCount) fail(dir === "OUT" ? "Batch has insufficient stock or is not found." : "Batch not found.", 409);
             }
-            const doc = { tenantId, productId: productObjectId, type: String(type).toUpperCase(), quantity: qty, direction: dir, batchId: batchObjectId, branchId: branchId ? String(branchId).trim() : null, reference: reference ? String(reference).trim() : null, notes: notes ? String(notes).trim() : null, unitCost: unitCost == null ? null : Number(unitCost), createdBy, createdAt: now };
+            const doc = { tenantId, productId: productObjectId, type: String(type).toUpperCase(), quantity: qty, direction: dir, batchId: batchObjectId, branchId: activeBranch, reference: reference ? String(reference).trim() : null, notes: notes ? String(notes).trim() : null, unitCost: unitCost == null ? null : Number(unitCost), createdBy, createdAt: now };
             const result = await movements.insertOne(doc, { session });
             movement = { ...doc, _id: result.insertedId };
         });
