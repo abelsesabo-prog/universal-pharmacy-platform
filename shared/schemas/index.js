@@ -3,7 +3,7 @@
 // Shared Data Schemas
 // ==========================================
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export const COLLECTIONS = Object.freeze({
     TENANTS: "tenants",
@@ -39,7 +39,13 @@ export const STOCK_MOVEMENT_SCHEMA = Object.freeze({
     optional: ["batchId", "branchId", "reference", "notes", "unitCost", "createdBy"]
 });
 
+// A sale is stored as a header in SALES; individual UOM-aware lines live in SALE_ITEMS.
 export const SALE_SCHEMA = Object.freeze({
-    required: ["tenantId", "branchId", "items", "paymentMethod", "total"],
-    optional: ["customerId", "cashierId", "discount", "timestamp"]
+    required: ["tenantId", "branchId", "subtotal", "total", "payments", "status", "createdAt"],
+    optional: ["customerId", "cashierId", "discount"]
+});
+
+export const SALE_ITEM_SCHEMA = Object.freeze({
+    required: ["tenantId", "saleId", "productId", "quantity", "unitPrice", "lineTotal", "uom", "conversionToBase", "baseQuantity", "createdAt"],
+    optional: ["productName"]
 });
