@@ -6,7 +6,7 @@ import { COLLECTIONS } from "../../shared/schemas/index.js";
 import { validateProduct } from "../../shared/validators/index.js";
 import { resolveUom, validateUomConfiguration } from "../../shared/uom.js";
 import { MAX_INVOICE_ROWS } from "./invoiceImportService.js";
-import { resolveExistingInvoiceProduct } from "./invoiceProductResolver.js";
+import { invoiceProductIdentity, resolveExistingInvoiceProduct } from "./invoiceProductResolver.js";
 
 function fail(message, statusCode = 400) { const error = new Error(message); error.statusCode = statusCode; throw error; }
 function text(value) { return String(value ?? "").trim(); }
@@ -82,17 +82,26 @@ export async function commitInvoiceAtomic({ tenantId, createdBy, branchId, rows,
 
                 let product = await resolveExistingInvoiceProduct(row, tenantId, session);
                 let productCreated = false;
-                if (!product) {
-                    product = buildNewProduct(row);
-                    const validation = validateProduct({ ...product, tenantId });
-                    if (!validation.valid) fail(validation.error || `Invoice product row ${row.rowNumber || ""} is invalid.`);
-                    const duplicate = await products.findOne({ tenantId, brandName: product.brandName, genericName: product.genericName, dosageForm: product.dosageForm, strength: product.strength }, { session });
-                    if (duplicate) product = duplicate;
-                    else {
-                        const inserted = await products.insertOne({ tenantId, ...product, createdAt: new Date(), updatedAt: new Date() }, { session });
-                        product = { ...product, _id: inserted.insertedId };
-                        productCreated = true;
+                const identityKey = invoiceProductIdentity(row);
+                if (product) {
+                    if (product.identityKey !== identityKey) {
+                        await products.updateOne({ _id: product._id, tenantId, $or: [{ identityKey: { $exists: false } }, { identityKey: null }, { identityKey }] }, { $set: { identityKey, updatedAt: new Date() } }, { session });
+                        product = await products.findOne({ _id: product._id, tenantId }, { session });
                     }
+                } else {
+                    const candidate = buildNewProduct(row);
+                    const validation = validateProduct({ ...candidate, tenantId });
+                    if (!validation.valid) fail(validation.error || `Invoice product row ${row.rowNumber || ""} is invalid.`);
+                    const upsertResult = await products.updateOne(
+                        { tenantId, identityKey },
+                        { $setOnInsert: { tenantId, identityKey, ...candidate, createdAt: new Date(), updatedAt: new Date() } },
+                        { upsert: true, session }
+                    );
+                    product = upsertResult.upsertedId
+                        ? { ...candidate, tenantId, identityKey, _id: upsertResult.upsertedId }
+                        : await products.findOne({ tenantId, identityKey }, { session });
+                    productCreated = Boolean(upsertResult.upsertedId);
+                    if (!product) fail(`Unable to resolve canonical product for invoice row ${row.rowNumber || ""}.`, 409);
                 }
 
                 const requestedUnit = text(row.uom).toLowerCase() || text(product.baseUnit).toLowerCase() || "piece";
