@@ -36,8 +36,12 @@ export function invoiceProductIdentity(row) {
     });
 }
 
+export function buildProductIdentityKey(product) {
+    return invoiceProductIdentity(product);
+}
+
 function escapeRegex(value) {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return value.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&");
 }
 
 function tolerantRegex(value) {
