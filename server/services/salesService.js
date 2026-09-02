@@ -3,6 +3,7 @@ import { getMongoClient } from "../database/mongo.js";
 import { getCollection } from "./index.js";
 import { requireActiveBranch } from "./branchService.js";
 import { COLLECTIONS } from "../../shared/schemas/index.js";
+import { calculateUomSale } from "../../shared/uom.js";
 
 function fail(message, statusCode = 400) { const error = new Error(message); error.statusCode = statusCode; throw error; }
 function id(value, label) { if (!ObjectId.isValid(value)) fail(`Invalid ${label}.`); return new ObjectId(value); }
@@ -36,11 +37,23 @@ export async function createSale({ tenantId, branchId, items = [], payments = []
                 const quantity = qty(raw.quantity);
                 const product = await products.findOne({ _id: productId, tenantId }, { session });
                 if (!product) fail("One or more products are not available in this tenant.", 404);
-                const unitPrice = Number(raw.unitPrice ?? 0);
-                if (!Number.isFinite(unitPrice) || unitPrice < 0) fail("Unit price must be zero or greater.");
-                const lineTotal = unitPrice * quantity;
+
+                const requestedUom = raw.uom || product.baseUnit || "UNIT";
+                const sale = calculateUomSale(product, quantity, requestedUom, raw.unitPrice);
+                const lineTotal = sale.lineTotal;
                 subtotal += lineTotal;
-                normalizedItems.push({ productId, productName: product.brandName || product.genericName, quantity, unitPrice, lineTotal, requestedBatchId: raw.batchId ? id(raw.batchId, "batch ID") : null, uom: raw.uom || product.baseUnit || "UNIT" });
+
+                normalizedItems.push({
+                    productId,
+                    productName: product.brandName || product.genericName,
+                    quantity: sale.quantity,
+                    uom: sale.unit,
+                    conversionToBase: sale.conversionToBase,
+                    baseQuantity: sale.baseQuantity,
+                    unitPrice: sale.unitPrice,
+                    lineTotal,
+                    requestedBatchId: raw.batchId ? id(raw.batchId, "batch ID") : null
+                });
             }
 
             const total = Math.max(subtotal - discountValue, 0);
@@ -53,7 +66,7 @@ export async function createSale({ tenantId, branchId, items = [], payments = []
             const saleResult = await sales.insertOne(saleDoc, { session });
 
             for (const item of normalizedItems) {
-                let remaining = item.quantity;
+                let remaining = item.baseQuantity;
                 const batchFilter = item.requestedBatchId ? { _id: item.requestedBatchId, tenantId, productId: item.productId, branchId: branch, quantity: { $gt: 0 }, expiryDate: { $gte: today } } : { tenantId, productId: item.productId, branchId: branch, quantity: { $gt: 0 }, expiryDate: { $gte: today } };
                 const availableBatches = await batches.find(batchFilter, { session }).sort({ expiryDate: 1, createdAt: 1 }).toArray();
                 for (const batch of availableBatches) {
@@ -66,9 +79,9 @@ export async function createSale({ tenantId, branchId, items = [], payments = []
                     remaining -= take;
                 }
                 if (remaining > 0) fail(`Insufficient unexpired stock for ${item.productName}.`, 409);
-                const productUpdate = await products.updateOne({ _id: item.productId, tenantId, stockQuantity: { $gte: item.quantity } }, { $inc: { stockQuantity: -item.quantity }, $set: { updatedAt: new Date() } }, { session });
+                const productUpdate = await products.updateOne({ _id: item.productId, tenantId, stockQuantity: { $gte: item.baseQuantity } }, { $inc: { stockQuantity: -item.baseQuantity }, $set: { updatedAt: new Date() } }, { session });
                 if (!productUpdate.modifiedCount) fail(`Product stock is inconsistent for ${item.productName}.`, 409);
-                await saleItems.insertOne({ tenantId, saleId: saleResult.insertedId, productId: item.productId, productName: item.productName, quantity: item.quantity, unitPrice: item.unitPrice, lineTotal: item.lineTotal, uom: item.uom, createdAt: new Date() }, { session });
+                await saleItems.insertOne({ tenantId, saleId: saleResult.insertedId, productId: item.productId, productName: item.productName, quantity: item.quantity, unitPrice: item.unitPrice, lineTotal: item.lineTotal, uom: item.uom, conversionToBase: item.conversionToBase, baseQuantity: item.baseQuantity, createdAt: new Date() }, { session });
             }
             sale = { ...saleDoc, _id: saleResult.insertedId };
         });
