@@ -3,6 +3,8 @@ import { getMongoClient } from "../database/mongo.js";
 import { COLLECTIONS } from "../../shared/schemas/index.js";
 import { getPendingOfflineEvents } from "./offlineEventLedger.js";
 
+export const REPLAY_PHASES = Object.freeze(["VALIDATED", "RESOLVED", "APPLIED", "AUDITED", "ACKNOWLEDGED"]);
+
 function text(value) { return String(value ?? "").trim(); }
 function fail(message, statusCode = 400) { const error = new Error(message); error.statusCode = statusCode; throw error; }
 function productId(value) { return ObjectId.isValid(value) ? new ObjectId(value) : value; }
@@ -28,7 +30,7 @@ async function writeReplayAudit(db, event, result, session) {
         deviceId: event.deviceId || null,
         userId: event.userId || null,
         outcome: result.action,
-        phases: ["VALIDATED", "RESOLVED", "APPLIED", "AUDITED", "ACKNOWLEDGED"],
+        phases: [...REPLAY_PHASES],
         createdAt: new Date()
     }, { session });
 }
@@ -133,7 +135,7 @@ export async function replayOfflineEvent(event, options = {}) {
                 { session }
             );
         });
-        return { ...result, phases: ["VALIDATED", "RESOLVED", "APPLIED", "AUDITED", "ACKNOWLEDGED"] };
+        return { ...result, phases: [...REPLAY_PHASES] };
     } catch (error) {
         await client.db().collection(COLLECTIONS.OFFLINE_EVENTS).updateOne(
             { tenantId: event.tenantId, eventId: event.eventId, status: "PENDING" },
