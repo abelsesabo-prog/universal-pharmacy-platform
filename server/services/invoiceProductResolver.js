@@ -31,11 +31,18 @@ function escapeRegex(value) {
     return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-export async function resolveExistingInvoiceProduct(row, tenantId) {
+function tolerantRegex(value) {
+    const tokens = canonicalProductText(value).split(" ").filter(Boolean);
+    if (!tokens.length) return null;
+    return new RegExp(tokens.map(escapeRegex).join("[^a-z0-9]*"), "i");
+}
+
+export async function resolveExistingInvoiceProduct(row, tenantId, session = undefined) {
     const products = getCollection(COLLECTIONS.PRODUCTS);
+    const options = session ? { session } : undefined;
     const barcode = text(row.barcode);
     if (barcode) {
-        return products.findOne({ tenantId, barcode });
+        return products.findOne({ tenantId, barcode }, options);
     }
 
     const brand = canonicalProductText(row.brandName);
@@ -45,14 +52,14 @@ export async function resolveExistingInvoiceProduct(row, tenantId) {
 
     if (!brand && !generic) return null;
 
-    const anchors = [brand, generic].filter(Boolean).map(value => new RegExp(escapeRegex(value).replace(/ /g, "\\s+"), "i"));
+    const anchors = [brand, generic].filter(Boolean).map(tolerantRegex).filter(Boolean);
     const candidates = await products.find({
         tenantId,
         $or: [
             { brandName: { $in: anchors } },
             { genericName: { $in: anchors } }
         ]
-    }).limit(50).toArray();
+    }, options).limit(50).toArray();
 
     const target = [brand, generic, dosage, strength].join("|");
     return candidates.find(product => canonicalProduct(product) === target) || null;
