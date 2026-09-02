@@ -6,6 +6,7 @@ import catalogRoutes from "./catalogRoutes.js";
 import inventoryRoutes from "./inventoryRoutes.js";
 import salesRoutes from "./salesRoutes.js";
 import auditRoutes from "./auditRoutes.js";
+import branchRoutes from "./branchRoutes.js";
 
 const router = express.Router();
 router.get("/health", healthCheck);
@@ -15,4 +16,5 @@ router.use("/catalog", catalogRoutes);
 router.use(inventoryRoutes);
 router.use(salesRoutes);
 router.use(auditRoutes);
+router.use(branchRoutes);
 export default router;
