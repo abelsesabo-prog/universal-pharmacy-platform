@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "node --watch server/app.js",
     "start": "node server/app.js",
-    "test": "node --test"
+    "test": "node --test",
+    "acceptance:offline": "node scripts/live-offline-reconciliation-check.js"
   },
   "engines": {
     "node": ">=20"
