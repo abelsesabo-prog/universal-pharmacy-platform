@@ -21,15 +21,16 @@ The recovered Master Plan/SRS copies were reviewed as one requirement set becaus
 - Audit and branch foundations.
 - Human-system executable anatomy contract.
 - TMDA quarantine/disposal organ with tenant-scoped batch linkage, explicit reasons, controlled disposition lifecycle and authorization evidence.
+- Clinical Safety Organ with canonical-ingredient allergy matching and authoritative interaction-rule evaluation without duplicating clinical truth.
 
 ## Highest-priority gaps from the Master Plan
 
-1. **Offline synchronization:** client background orchestration is now implemented; remaining work is live multi-device reconciliation verification and production browser/service-worker acceptance testing.
-2. **Regulated pharmacy organs:** interaction/allergy safety, NHIF workflow, expiry relocation and EFD integration remain implementation gaps; TMDA quarantine/disposal is now represented by an executable organ contract.
+1. **Offline synchronization:** client background orchestration is implemented; remaining work is live multi-device reconciliation verification and production browser/service-worker acceptance testing.
+2. **Regulated pharmacy organs:** interaction/allergy safety contract is now implemented; NHIF workflow, expiry relocation and EFD integration remain implementation gaps.
 3. **Universal business organs:** bookkeeping/expense reconciliation and customer complaint workflows need complete cross-business implementations and audit integration.
 4. **Expansion organs:** EHR, laboratory, inpatient, enterprise wholesale, multi-warehouse logistics and migration remain future domain implementations.
 5. **UI automation:** guided category-aware item entry, inline interaction and continuous focus need end-to-end browser verification and remaining adapters.
-6. **Production integration:** cross-domain audit/event emission and database transaction boundaries need live integration verification, including quarantine stock movements and finalized dispositions.
+6. **Production integration:** cross-domain audit/event emission and database transaction boundaries need live integration verification, including quarantine stock movements, finalized dispositions and clinical safety decisions.
 
 ## Human architecture rule
 
@@ -42,7 +43,7 @@ A lower-level component owns its local state and exposes contracts upward. Highe
 ## Next implementation order
 
 1. Complete live multi-device reconciliation verification and browser/service-worker acceptance tests.
-2. Add interaction/allergy safety, NHIF, expiry relocation and EFD adapters around canonical domain truth.
+2. Implement NHIF, expiry relocation and EFD adapters around canonical domain truth.
 3. Implement financial/complaint organs with cross-domain audit events.
 4. Add production integration tests for regulated stock, audit and transactional boundaries.
 5. Implement hospital, laboratory, enterprise and migration organs.
