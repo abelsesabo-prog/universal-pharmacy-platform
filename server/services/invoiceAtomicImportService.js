@@ -11,6 +11,7 @@ import { resolveExistingInvoiceProduct } from "./invoiceProductResolver.js";
 function fail(message, statusCode = 400) { const error = new Error(message); error.statusCode = statusCode; throw error; }
 function text(value) { return String(value ?? "").trim(); }
 function positive(value, label) { const n = Number(value); if (!Number.isFinite(n) || n <= 0) fail(`${label} must be greater than zero.`); return n; }
+function escapeRegex(value) { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
 
 function validateRow(row, index) {
     if (!row || typeof row !== "object") fail(`Invoice row ${index + 1} is invalid.`);
@@ -72,10 +73,11 @@ export async function commitInvoiceAtomic({ tenantId, createdBy, branchId, rows,
             const seenBatches = new Set();
 
             for (const row of normalizedRows) {
-                const batchKey = `${tenantId}|${activeBranch}|${text(row.batchNumber).toLowerCase()}`;
+                const normalizedBatch = text(row.batchNumber).toLowerCase();
+                const batchKey = `${tenantId}|${activeBranch}|${normalizedBatch}`;
                 if (seenBatches.has(batchKey)) fail(`Duplicate batch number '${row.batchNumber}' in this invoice.`);
                 seenBatches.add(batchKey);
-                const duplicateBatch = await batches.findOne({ tenantId, branchId: activeBranch, batchNumber: text(row.batchNumber) }, { session });
+                const duplicateBatch = await batches.findOne({ tenantId, branchId: activeBranch, batchNumber: { $regex: `^${escapeRegex(text(row.batchNumber))}$`, $options: "i" } }, { session });
                 if (duplicateBatch) fail(`Batch number '${row.batchNumber}' already exists in this branch.`, 409);
 
                 let product = await resolveExistingInvoiceProduct(row, tenantId, session);
