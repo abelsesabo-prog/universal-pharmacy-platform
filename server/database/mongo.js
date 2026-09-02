@@ -1,8 +1,31 @@
 import { MongoClient } from "mongodb";
 import config from "../config/config.js";
+import { COLLECTIONS } from "../../shared/schemas/index.js";
 
 let client = null;
 let database = null;
+
+async function ensureSecurityIndexes(db) {
+    await db.collection(COLLECTIONS.TENANTS).createIndex(
+        { tenantId: 1 },
+        { unique: true, name: "uq_tenant_id" }
+    );
+
+    await db.collection(COLLECTIONS.USERS).createIndex(
+        { username: 1 },
+        { unique: true, name: "uq_username" }
+    );
+
+    await db.collection(COLLECTIONS.USERS).createIndex(
+        { tenantId: 1, status: 1 },
+        { name: "idx_user_tenant_status" }
+    );
+
+    await db.collection(COLLECTIONS.PRODUCTS).createIndex(
+        { tenantId: 1, brandName: 1, genericName: 1, dosageForm: 1, strength: 1 },
+        { name: "idx_product_tenant_identity" }
+    );
+}
 
 async function connectMongoDB() {
     if (!config.database.mongodbUri) {
@@ -11,11 +34,10 @@ async function connectMongoDB() {
 
     try {
         client = new MongoClient(config.database.mongodbUri);
-
         await client.connect();
-
         database = client.db();
 
+        await ensureSecurityIndexes(database);
         console.log("MongoDB connected successfully.");
 
         return database;
