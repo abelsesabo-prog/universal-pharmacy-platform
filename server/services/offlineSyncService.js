@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { appendOfflineEvent } from "./offlineEventLedger.js";
+import { appendOfflineEvent, markOfflineEvent } from "./offlineEventLedger.js";
 import { replayOfflineEvent } from "./offlineEventProcessor.js";
 
 export const MAX_SYNC_EVENTS = 100;
@@ -95,6 +95,7 @@ export async function syncOfflineEvents(input = {}, options = {}) {
             if (accepted.duplicate) {
                 const existingFingerprint = accepted.event.fingerprint || fingerprintOfflineEvent(accepted.event);
                 if (existingFingerprint !== event.fingerprint) {
+                    await markOfflineEvent(event.eventId, tenantId, "CONFLICT", "eventId already exists with different event content.");
                     acknowledgements.push({ eventId: event.eventId, status: "CONFLICT", reason: "eventId already exists with different event content." });
                     continue;
                 }
