@@ -22,6 +22,9 @@ test("TMDA quarantine API is mounted under /api/tmda", async () => {
 test("TMDA controllers derive tenant and actor from authenticated identity", async () => {
     const source = await fs.readFile(controllerPath, "utf8");
     assert.match(source, /tenantId: req\.user\.tenantId/);
-    assert.match(source, /createdBy: req\.user\.sub/);
+    assert.match(source, /createdBy: actorId\(req\)/);
     assert.match(source, /quarantineId: req\.params\.id/);
+    assert.match(source, /recordAudit/);
+    assert.match(source, /TMDA_QUARANTINE_CREATED/);
+    assert.match(source, /TMDA_QUARANTINE_DISPOSITION_APPLIED/);
 });
