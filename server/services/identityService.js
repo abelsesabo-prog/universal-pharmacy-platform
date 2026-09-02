@@ -15,15 +15,12 @@ export function normalizeRole(role) {
 }
 
 export async function ensureBootstrapIdentity({ username, passwordHash, tenantId, role }) {
-    const tenants = getCollection(COLLECTIONS.TENANTS || "tenants");
+    const tenants = getCollection(COLLECTIONS.TENANTS);
     const users = getCollection(COLLECTIONS.USERS);
-
     const normalizedTenantId = String(tenantId || "").trim();
     const normalizedUsername = String(username || "").trim();
 
-    if (!normalizedTenantId || !normalizedUsername || !passwordHash) {
-        return null;
-    }
+    if (!normalizedTenantId || !normalizedUsername || !passwordHash) return null;
 
     await tenants.updateOne(
         { tenantId: normalizedTenantId },
@@ -39,10 +36,7 @@ export async function ensureBootstrapIdentity({ username, passwordHash, tenantId
     );
 
     const existing = await users.findOne({ username: normalizedUsername });
-
-    if (existing) {
-        return existing;
-    }
+    if (existing) return existing;
 
     const user = {
         userId: randomUUID(),
@@ -62,6 +56,20 @@ export async function ensureBootstrapIdentity({ username, passwordHash, tenantId
 export async function findActiveUser(username) {
     return getCollection(COLLECTIONS.USERS).findOne({
         username: String(username || "").trim(),
+        status: "active"
+    });
+}
+
+export async function findActiveUserById(userId) {
+    return getCollection(COLLECTIONS.USERS).findOne({
+        userId: String(userId || "").trim(),
+        status: "active"
+    });
+}
+
+export async function findActiveTenant(tenantId) {
+    return getCollection(COLLECTIONS.TENANTS).findOne({
+        tenantId: String(tenantId || "").trim(),
         status: "active"
     });
 }
