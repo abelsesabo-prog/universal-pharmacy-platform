@@ -17,6 +17,22 @@ export function validateReplayEvent(event) {
     return { valid: errors.length === 0, errors };
 }
 
+async function writeReplayAudit(db, event, result, session) {
+    await db.collection(COLLECTIONS.AUDIT_LOGS).insertOne({
+        tenantId: event.tenantId,
+        action: "OFFLINE_REPLAY",
+        entity: result.entity || event.eventType,
+        entityId: result.entityId || null,
+        eventId: event.eventId,
+        eventType: event.eventType,
+        deviceId: event.deviceId || null,
+        userId: event.userId || null,
+        outcome: result.action,
+        phases: ["VALIDATED", "RESOLVED", "APPLIED", "AUDITED", "ACKNOWLEDGED"],
+        createdAt: new Date()
+    }, { session });
+}
+
 async function applySale(db, event, session) {
     const payload = event.payload;
     const qty = Number(payload.quantity);
@@ -34,6 +50,11 @@ async function applySale(db, event, session) {
     const unitPrice = Number(payload.unitPrice ?? 0);
     if (!Number.isFinite(lineTotal) || lineTotal < 0 || !Number.isFinite(unitPrice) || unitPrice < 0) fail("SALE replay contains invalid pricing.");
 
+    const existingSale = await db.collection(COLLECTIONS.SALES).findOne({ tenantId: event.tenantId, offlineEventId: event.eventId }, { session });
+    if (existingSale) {
+        return { action: "ALREADY_APPLIED", entity: "SALE", entityId: String(existingSale._id), productId: String(product._id), baseQuantity };
+    }
+
     const saleDocument = {
         tenantId: event.tenantId,
         branchId: text(payload.branchId || event.branchId) || null,
@@ -46,31 +67,23 @@ async function applySale(db, event, session) {
         customerId: payload.customerId || null,
         createdAt: now
     };
-    await db.collection(COLLECTIONS.SALES).updateOne(
-        { tenantId: event.tenantId, offlineEventId: event.eventId },
-        { $setOnInsert: saleDocument },
-        { upsert: true, session }
-    );
-    const sale = await db.collection(COLLECTIONS.SALES).findOne({ tenantId: event.tenantId, offlineEventId: event.eventId }, { session });
+    const saleInsert = await db.collection(COLLECTIONS.SALES).insertOne(saleDocument, { session });
+    const saleId = saleInsert.insertedId;
 
-    await db.collection(COLLECTIONS.SALE_ITEMS).updateOne(
-        { tenantId: event.tenantId, saleId: sale._id, productId: product._id, offlineEventId: event.eventId },
-        { $setOnInsert: {
-            tenantId: event.tenantId,
-            saleId: sale._id,
-            productId: product._id,
-            productName: product.brandName || product.genericName,
-            quantity: qty,
-            unitPrice,
-            lineTotal,
-            uom: text(payload.uom) || product.baseUnit || "piece",
-            conversionToBase: Number(payload.conversionToBase || 1),
-            baseQuantity,
-            offlineEventId: event.eventId,
-            createdAt: now
-        } },
-        { upsert: true, session }
-    );
+    await db.collection(COLLECTIONS.SALE_ITEMS).insertOne({
+        tenantId: event.tenantId,
+        saleId,
+        productId: product._id,
+        productName: product.brandName || product.genericName,
+        quantity: qty,
+        unitPrice,
+        lineTotal,
+        uom: text(payload.uom) || product.baseUnit || "piece",
+        conversionToBase: Number(payload.conversionToBase || 1),
+        baseQuantity,
+        offlineEventId: event.eventId,
+        createdAt: now
+    }, { session });
 
     const stockResult = await db.collection(COLLECTIONS.PRODUCTS).updateOne(
         { _id: product._id, tenantId: event.tenantId, stockQuantity: { $gte: baseQuantity } },
@@ -79,24 +92,20 @@ async function applySale(db, event, session) {
     );
     if (!stockResult.modifiedCount) fail("SALE replay could not decrement stock safely.", 409);
 
-    await db.collection(COLLECTIONS.STOCK_MOVEMENTS).updateOne(
-        { tenantId: event.tenantId, offlineEventId: event.eventId },
-        { $setOnInsert: {
-            tenantId: event.tenantId,
-            productId: product._id,
-            type: "SALE",
-            quantity: baseQuantity,
-            direction: "OUT",
-            branchId: text(payload.branchId || event.branchId) || null,
-            reference: `OFFLINE:${event.eventId}`,
-            notes: "Replayed offline sale",
-            createdBy: event.userId || null,
-            createdAt: now,
-            offlineEventId: event.eventId
-        } },
-        { upsert: true, session }
-    );
-    return { action: "APPLIED", entity: "SALE", productId: String(product._id), baseQuantity };
+    await db.collection(COLLECTIONS.STOCK_MOVEMENTS).insertOne({
+        tenantId: event.tenantId,
+        productId: product._id,
+        type: "SALE",
+        quantity: baseQuantity,
+        direction: "OUT",
+        branchId: text(payload.branchId || event.branchId) || null,
+        reference: `OFFLINE:${event.eventId}`,
+        notes: "Replayed offline sale",
+        createdBy: event.userId || null,
+        createdAt: now,
+        offlineEventId: event.eventId
+    }, { session });
+    return { action: "APPLIED", entity: "SALE", entityId: String(saleId), productId: String(product._id), baseQuantity };
 }
 
 export async function replayOfflineEvent(event, options = {}) {
@@ -117,17 +126,18 @@ export async function replayOfflineEvent(event, options = {}) {
             }
             if (current.eventType !== "SALE") fail(`Replay handler for event type '${current.eventType}' is not implemented yet.`, 422);
             result = await applySale(db, current, session);
+            await writeReplayAudit(db, current, result, session);
             await ledger.updateOne(
                 { tenantId: event.tenantId, eventId: event.eventId, status: "PENDING" },
-                { $set: { status: "APPLIED", processedAt: new Date(), processor: options.processor || "offline-event-processor" }, $unset: { error: "" } },
+                { $set: { status: "APPLIED", replayPhase: "ACKNOWLEDGED", processedAt: new Date(), processor: options.processor || "offline-event-processor" }, $unset: { error: "" } },
                 { session }
             );
         });
-        return result;
+        return { ...result, phases: ["VALIDATED", "RESOLVED", "APPLIED", "AUDITED", "ACKNOWLEDGED"] };
     } catch (error) {
         await client.db().collection(COLLECTIONS.OFFLINE_EVENTS).updateOne(
             { tenantId: event.tenantId, eventId: event.eventId, status: "PENDING" },
-            { $set: { status: "REJECTED", processedAt: new Date(), error: text(error.message) || "Offline replay failed." } }
+            { $set: { status: "REJECTED", replayPhase: "REJECTED", processedAt: new Date(), error: text(error.message) || "Offline replay failed." } }
         );
         throw error;
     } finally {
