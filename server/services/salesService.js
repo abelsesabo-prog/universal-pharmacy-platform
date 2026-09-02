@@ -1,6 +1,7 @@
 import { ObjectId } from "mongodb";
 import { getMongoClient } from "../database/mongo.js";
 import { getCollection } from "./index.js";
+import { requireActiveBranch } from "./branchService.js";
 import { COLLECTIONS } from "../../shared/schemas/index.js";
 
 function fail(message, statusCode = 400) { const error = new Error(message); error.statusCode = statusCode; throw error; }
@@ -10,7 +11,7 @@ function qty(value) { const n = Number(value); if (!Number.isFinite(n) || n <= 0
 export async function createSale({ tenantId, branchId, items = [], payments = [], customerId = null, cashierId = null, discount = 0 }) {
     if (!tenantId) fail("Tenant context is required.", 403);
     const branch = String(branchId || "").trim();
-    if (!branch) fail("Branch is required.");
+    await requireActiveBranch(tenantId, branch);
     if (!Array.isArray(items) || items.length === 0) fail("At least one sale item is required.");
     if (!Array.isArray(payments) || payments.length === 0) fail("At least one payment is required.");
     const discountValue = Number(discount) || 0;
@@ -53,15 +54,13 @@ export async function createSale({ tenantId, branchId, items = [], payments = []
 
             for (const item of normalizedItems) {
                 let remaining = item.quantity;
-                const batchFilter = item.requestedBatchId
-                    ? { _id: item.requestedBatchId, tenantId, productId: item.productId, quantity: { $gt: 0 }, expiryDate: { $gte: today } }
-                    : { tenantId, productId: item.productId, branchId: branch, quantity: { $gt: 0 }, expiryDate: { $gte: today } };
+                const batchFilter = item.requestedBatchId ? { _id: item.requestedBatchId, tenantId, productId: item.productId, branchId: branch, quantity: { $gt: 0 }, expiryDate: { $gte: today } } : { tenantId, productId: item.productId, branchId: branch, quantity: { $gt: 0 }, expiryDate: { $gte: today } };
                 const availableBatches = await batches.find(batchFilter, { session }).sort({ expiryDate: 1, createdAt: 1 }).toArray();
                 for (const batch of availableBatches) {
                     if (remaining <= 0) break;
                     const take = Math.min(remaining, Number(batch.quantity));
                     if (take <= 0) continue;
-                    const result = await batches.updateOne({ _id: batch._id, tenantId, productId: item.productId, quantity: { $gte: take } }, { $inc: { quantity: -take }, $set: { updatedAt: new Date() } }, { session });
+                    const result = await batches.updateOne({ _id: batch._id, tenantId, productId: item.productId, branchId: branch, quantity: { $gte: take } }, { $inc: { quantity: -take }, $set: { updatedAt: new Date() } }, { session });
                     if (!result.modifiedCount) continue;
                     await movements.insertOne({ tenantId, branchId: branch, productId: item.productId, batchId: batch._id, type: "SALE", quantity: take, direction: "OUT", reference: `SALE:${saleResult.insertedId}`, unitCost: batch.costPrice ?? null, createdAt: new Date() }, { session });
                     remaining -= take;
