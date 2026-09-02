@@ -16,7 +16,9 @@ export function requireAuth(req, res, next) {
 
     try {
         req.user = jwt.verify(token, config.security.jwtSecret, {
-            algorithms: ["HS256"]
+            algorithms: ["HS256"],
+            issuer: "universal-pharmacy-platform",
+            audience: "universal-pharmacy-api"
         });
         return next();
     } catch {
