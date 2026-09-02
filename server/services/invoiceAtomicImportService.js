@@ -6,16 +6,11 @@ import { COLLECTIONS } from "../../shared/schemas/index.js";
 import { validateProduct } from "../../shared/validators/index.js";
 import { resolveUom, validateUomConfiguration } from "../../shared/uom.js";
 import { MAX_INVOICE_ROWS } from "./invoiceImportService.js";
+import { resolveExistingInvoiceProduct } from "./invoiceProductResolver.js";
 
 function fail(message, statusCode = 400) { const error = new Error(message); error.statusCode = statusCode; throw error; }
 function text(value) { return String(value ?? "").trim(); }
 function positive(value, label) { const n = Number(value); if (!Number.isFinite(n) || n <= 0) fail(`${label} must be greater than zero.`); return n; }
-
-function productFilter(row, tenantId) {
-    const filter = { tenantId };
-    if (text(row.barcode)) return { ...filter, barcode: text(row.barcode) };
-    return { ...filter, brandName: text(row.brandName), genericName: text(row.genericName), dosageForm: text(row.dosageForm) || "Unspecified", strength: row.strength == null ? null : text(row.strength) };
-}
 
 function validateRow(row, index) {
     if (!row || typeof row !== "object") fail(`Invoice row ${index + 1} is invalid.`);
@@ -83,14 +78,14 @@ export async function commitInvoiceAtomic({ tenantId, createdBy, branchId, rows,
                 const duplicateBatch = await batches.findOne({ tenantId, branchId: activeBranch, batchNumber: text(row.batchNumber) }, { session });
                 if (duplicateBatch) fail(`Batch number '${row.batchNumber}' already exists in this branch.`, 409);
 
-                let product = await products.findOne(productFilter(row, tenantId), { session });
+                let product = await resolveExistingInvoiceProduct(row, tenantId);
                 let productCreated = false;
                 if (!product) {
                     product = buildNewProduct(row);
                     const validation = validateProduct({ ...product, tenantId });
                     if (!validation.valid) fail(validation.error || `Invoice product row ${row.rowNumber || ""} is invalid.`);
                     const duplicate = await products.findOne({ tenantId, brandName: product.brandName, genericName: product.genericName, dosageForm: product.dosageForm, strength: product.strength }, { session });
-                    if (duplicate) { product = duplicate; }
+                    if (duplicate) product = duplicate;
                     else {
                         const inserted = await products.insertOne({ tenantId, ...product, createdAt: new Date(), updatedAt: new Date() }, { session });
                         product = { ...product, _id: inserted.insertedId };
