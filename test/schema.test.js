@@ -7,14 +7,14 @@ test("all planned core collections have canonical names", () => {
 });
 
 test("schema version is current and sale header matches sales service", () => {
-    assert.equal(SCHEMA_VERSION, 6);
+    assert.equal(SCHEMA_VERSION, 7);
     assert.deepEqual(SALE_SCHEMA.required, ["tenantId", "branchId", "subtotal", "total", "payments", "status", "createdAt"]);
 });
 
 test("offline event contract has explicit idempotency and lifecycle fields", () => {
     assert.equal(COLLECTIONS.OFFLINE_EVENTS, "offline_events");
     assert.deepEqual(OFFLINE_EVENT_SCHEMA.required, ["eventId", "tenantId", "deviceId", "eventType", "occurredAt", "payload", "status"]);
-    assert.deepEqual(OFFLINE_EVENT_STATUSES, ["PENDING", "APPLIED", "REJECTED"]);
+    assert.deepEqual(OFFLINE_EVENT_STATUSES, ["PENDING", "APPLIED", "REJECTED", "CONFLICT"]);
 });
 
 test("TMDA quarantine contract has canonical collection, lifecycle and regulated reasons", () => {
