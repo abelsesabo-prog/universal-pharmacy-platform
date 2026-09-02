@@ -7,8 +7,19 @@ import { COLLECTIONS } from "../../shared/schemas/index.js";
 import { validateProduct } from "../../shared/validators/index.js";
 import { getCollection } from "./index.js";
 
-function normalizeProduct(data) {
+function assertTenantId(tenantId) {
+    const normalized = String(tenantId || "").trim();
+    if (!normalized) {
+        const error = new Error("Tenant context is required.");
+        error.statusCode = 403;
+        throw error;
+    }
+    return normalized;
+}
+
+function normalizeProduct(data, tenantId) {
     return {
+        tenantId: assertTenantId(tenantId),
         brandName: String(data.brandName || "").trim(),
         genericName: String(data.genericName || "").trim(),
         dosageForm: String(data.dosageForm || "").trim(),
@@ -26,23 +37,21 @@ function normalizeProduct(data) {
     };
 }
 
-export async function createProduct(data) {
-    const validation = validateProduct(data);
+export async function createProduct(data, tenantId) {
+    const scopedTenantId = assertTenantId(tenantId);
+    const validation = validateProduct({ ...data, tenantId: scopedTenantId });
 
     if (!validation.valid) {
-        const error = new Error(
-            `Missing required fields: ${validation.missing.join(", ")}`
-        );
-
+        const error = new Error(`Missing required fields: ${validation.missing.join(", ")}`);
         error.statusCode = 400;
         throw error;
     }
 
     const products = getCollection(COLLECTIONS.PRODUCTS);
-
-    const product = normalizeProduct(data);
+    const product = normalizeProduct(data, scopedTenantId);
 
     const duplicate = await products.findOne({
+        tenantId: scopedTenantId,
         brandName: product.brandName,
         genericName: product.genericName,
         dosageForm: product.dosageForm,
@@ -51,20 +60,16 @@ export async function createProduct(data) {
 
     if (duplicate) {
         const error = new Error("A matching product already exists.");
-
         error.statusCode = 409;
         throw error;
     }
 
     const result = await products.insertOne(product);
-
-    return {
-        ...product,
-        _id: result.insertedId
-    };
+    return { ...product, _id: result.insertedId };
 }
 
-export async function getProductById(productId) {
+export async function getProductById(productId, tenantId) {
+    const scopedTenantId = assertTenantId(tenantId);
     const products = getCollection(COLLECTIONS.PRODUCTS);
 
     if (!ObjectId.isValid(productId)) {
@@ -74,11 +79,13 @@ export async function getProductById(productId) {
     }
 
     return products.findOne({
-        _id: new ObjectId(productId)
+        _id: new ObjectId(productId),
+        tenantId: scopedTenantId
     });
 }
 
-export async function updateProduct(productId, data) {
+export async function updateProduct(productId, data, tenantId) {
+    const scopedTenantId = assertTenantId(tenantId);
     const products = getCollection(COLLECTIONS.PRODUCTS);
 
     if (!ObjectId.isValid(productId)) {
@@ -88,31 +95,21 @@ export async function updateProduct(productId, data) {
     }
 
     const _id = new ObjectId(productId);
-
-    const existing = await products.findOne({ _id });
+    const existing = await products.findOne({ _id, tenantId: scopedTenantId });
 
     if (!existing) {
-    const error = new Error("Product not found.");
-    error.statusCode = 404;
-    throw error;
-}
+        const error = new Error("Product not found.");
+        error.statusCode = 404;
+        throw error;
+    }
+
     const allowedFields = [
-        "brandName",
-        "genericName",
-        "dosageForm",
-        "category",
-        "strength",
-        "strengthUnit",
-        "manufacturer",
-        "registrationAgency",
-        "registrationNumber",
-        "baseUnit",
-        "uomMatrix",
-        "barcode"
+        "brandName", "genericName", "dosageForm", "category", "strength",
+        "strengthUnit", "manufacturer", "registrationAgency", "registrationNumber",
+        "baseUnit", "uomMatrix", "barcode"
     ];
 
     const updates = {};
-
     for (const field of allowedFields) {
         if (Object.prototype.hasOwnProperty.call(data, field)) {
             updates[field] = data[field];
@@ -125,24 +122,18 @@ export async function updateProduct(productId, data) {
         throw error;
     }
 
-    const candidate = {
-        ...existing,
-        ...updates
-    };
-
+    const candidate = { ...existing, ...updates, tenantId: scopedTenantId };
     const validation = validateProduct(candidate);
 
     if (!validation.valid) {
-        const error = new Error(
-            `Missing required fields: ${validation.missing.join(", ")}`
-        );
-
+        const error = new Error(`Missing required fields: ${validation.missing.join(", ")}`);
         error.statusCode = 400;
         throw error;
     }
 
     const duplicate = await products.findOne({
         _id: { $ne: _id },
+        tenantId: scopedTenantId,
         brandName: String(candidate.brandName || "").trim(),
         genericName: String(candidate.genericName || "").trim(),
         dosageForm: String(candidate.dosageForm || "").trim(),
@@ -156,18 +147,12 @@ export async function updateProduct(productId, data) {
     }
 
     updates.updatedAt = new Date();
-
-    await products.updateOne(
-        { _id },
-        {
-            $set: updates
-        }
-    );
-
-    return products.findOne({ _id });
+    await products.updateOne({ _id, tenantId: scopedTenantId }, { $set: updates });
+    return products.findOne({ _id, tenantId: scopedTenantId });
 }
 
-export async function deleteProduct(productId) {
+export async function deleteProduct(productId, tenantId) {
+    const scopedTenantId = assertTenantId(tenantId);
     const products = getCollection(COLLECTIONS.PRODUCTS);
 
     if (!ObjectId.isValid(productId)) {
@@ -177,36 +162,26 @@ export async function deleteProduct(productId) {
     }
 
     const _id = new ObjectId(productId);
-
-    const existing = await products.findOne({ _id });
+    const existing = await products.findOne({ _id, tenantId: scopedTenantId });
 
     if (!existing) {
-    const error = new Error("Product not found.");
-    error.statusCode = 404;
-    throw error;
+        const error = new Error("Product not found.");
+        error.statusCode = 404;
+        throw error;
+    }
+
+    await products.deleteOne({ _id, tenantId: scopedTenantId });
+    return { deleted: true, product: existing };
 }
 
-    await products.deleteOne({ _id });
-
-    return {
-        deleted: true,
-        product: existing
-    };
-}
-
-
-export async function listProducts(options = {}) {
+export async function listProducts(options = {}, tenantId) {
+    const scopedTenantId = assertTenantId(tenantId);
     const products = getCollection(COLLECTIONS.PRODUCTS);
-
-    const limit = Math.min(
-        Math.max(Number(options.limit) || 50, 1),
-        100
-    );
-
+    const limit = Math.min(Math.max(Number(options.limit) || 50, 1), 100);
     const skip = Math.max(Number(options.skip) || 0, 0);
 
     return products
-        .find({})
+        .find({ tenantId: scopedTenantId })
         .sort({ brandName: 1, genericName: 1 })
         .skip(skip)
         .limit(limit)
