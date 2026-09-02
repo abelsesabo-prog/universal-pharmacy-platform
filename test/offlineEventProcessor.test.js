@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { validateReplayEvent } from "../server/services/offlineEventProcessor.js";
+import { REPLAY_PHASES, validateReplayEvent } from "../server/services/offlineEventProcessor.js";
 
 test("offline replay validator accepts a structurally valid sale event", () => {
     const result = validateReplayEvent({
@@ -22,4 +22,14 @@ test("offline replay validator rejects an array payload", () => {
     });
     assert.equal(result.valid, false);
     assert.ok(result.errors.includes("payload must be an object."));
+});
+
+test("offline replay exposes the complete reconciliation phase contract", () => {
+    assert.deepEqual([...REPLAY_PHASES], [
+        "VALIDATED",
+        "RESOLVED",
+        "APPLIED",
+        "AUDITED",
+        "ACKNOWLEDGED"
+    ]);
 });
