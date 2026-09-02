@@ -11,7 +11,7 @@ async function ensureSecurityIndexes(db) {
     await db.collection(COLLECTIONS.USERS).createIndex({ tenantId: 1, status: 1 }, { name: "idx_user_tenant_status" });
     await db.collection(COLLECTIONS.PRODUCTS).createIndex({ tenantId: 1, brandName: 1, genericName: 1, dosageForm: 1, strength: 1 }, { name: "idx_product_tenant_identity" });
     await db.collection(COLLECTIONS.BATCHES).createIndex({ tenantId: 1, productId: 1, expiryDate: 1 }, { name: "idx_batch_tenant_product_expiry" });
-    await db.collection(COLLECTIONS.BATCHES).createIndex({ tenantId: 1, batchNumber: 1 }, { unique: true, name: "uq_batch_tenant_number" });
+    await db.collection(COLLECTIONS.BATCHES).createIndex({ tenantId: 1, productId: 1, batchNumber: 1 }, { unique: true, name: "uq_batch_tenant_product_number" });
     await db.collection(COLLECTIONS.STOCK_MOVEMENTS).createIndex({ tenantId: 1, productId: 1, createdAt: -1 }, { name: "idx_movement_tenant_product_date" });
 }
 
