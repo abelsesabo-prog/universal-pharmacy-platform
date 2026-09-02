@@ -18,13 +18,22 @@ function canonicalStrength(value) {
     return canonicalProductText(value).replace(/\s+/g, "");
 }
 
-function canonicalProduct(product) {
+export function canonicalProductIdentity(product) {
     return [
         product.brandName,
         product.genericName,
-        product.dosageForm,
-        product.strength
+        product.dosageForm || "Unspecified",
+        canonicalStrength(product.strength)
     ].map(canonicalProductText).join("|");
+}
+
+export function invoiceProductIdentity(row) {
+    return canonicalProductIdentity({
+        brandName: row.brandName,
+        genericName: row.genericName,
+        dosageForm: row.dosageForm,
+        strength: row.strength
+    });
 }
 
 function escapeRegex(value) {
@@ -62,5 +71,5 @@ export async function resolveExistingInvoiceProduct(row, tenantId, session = und
     }, options).limit(50).toArray();
 
     const target = [brand, generic, dosage, strength].join("|");
-    return candidates.find(product => canonicalProduct(product) === target) || null;
+    return candidates.find(product => canonicalProductIdentity(product) === target) || null;
 }
