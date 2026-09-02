@@ -16,7 +16,7 @@ export const STOCK_MOVEMENT_SCHEMA = Object.freeze({ required: ["tenantId", "pro
 export const SALE_SCHEMA = Object.freeze({ required: ["tenantId", "branchId", "subtotal", "total", "payments", "status", "createdAt"], optional: ["customerId", "cashierId", "discount"] });
 export const SALE_ITEM_SCHEMA = Object.freeze({ required: ["tenantId", "saleId", "productId", "quantity", "unitPrice", "lineTotal", "uom", "conversionToBase", "baseQuantity", "createdAt"], optional: ["productName"] });
 
-export const TMDA_QUARANTINE_SCHEMA = Object.freeze({ required: ["tenantId", "productId", "batchId", "quantity", "reason", "status", "quarantineDate"], optional: ["disposition", "dispositionDate", "authorisedBy", "notes", "createdAt", "updatedAt"] });
+export const TMDA_QUARANTINE_SCHEMA = Object.freeze({ required: ["tenantId", "productId", "batchId", "quantity", "reason", "status", "quarantineDate"], optional: ["disposition", "dispositionDate", "authorisedBy", "notes", "createdAt", "updatedAt", "branchId", "movementId", "dispositionMovementId", "createdBy"] });
 export const TMDA_QUARANTINE_STATUSES = Object.freeze(["QUARANTINED", "RELEASED", "DISPOSED"]);
 export const TMDA_QUARANTINE_REASONS = Object.freeze(["EXPIRED", "DAMAGED", "RECALL", "SUSPECT", "REGULATORY_HOLD", "OTHER"]);
 export const TMDA_DISPOSITION_TYPES = Object.freeze(["RETURN_SUPPLIER", "DESTROY", "AUTHORISED_RELEASE", "OTHER"]);
