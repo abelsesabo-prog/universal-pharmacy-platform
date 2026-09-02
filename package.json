@@ -7,19 +7,22 @@
   "scripts": {
     "dev": "node --watch server/app.js",
     "start": "node server/app.js",
-    "test": "node --test",
-    "migrate:product-tenants": "node server/scripts/backfillProductTenants.js"
+    "test": "node --test"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
-    "mongodb": "^6.19.0",
     "jsonwebtoken": "^9.0.2",
-    "bcryptjs": "^3.0.2"
+    "mongodb": "^6.19.0",
+    "mammoth": "^1.9.1",
+    "pdf-parse": "^1.1.1",
+    "word-extractor": "^0.3.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {}
 }
