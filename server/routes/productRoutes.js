@@ -4,6 +4,7 @@
 // ==========================================
 
 import express from "express";
+import { requireAuth, requireRole } from "../middleware/auth.js";
 
 import {
     createProductController,
@@ -12,11 +13,16 @@ import {
     deleteProductController,
     listProductsController
 } from "../controllers/productController.js";
+
 const router = express.Router();
 
-router.post("/", createProductController);
+// Product data is private application data: every operation requires an authenticated identity.
+router.use(requireAuth);
+
+router.post("/", requireRole("admin", "manager"), createProductController);
 router.get("/", listProductsController);
 router.get("/:id", getProductController);
-router.patch("/:id", updateProductController);
-router.delete("/:id", deleteProductController);
+router.patch("/:id", requireRole("admin", "manager"), updateProductController);
+router.delete("/:id", requireRole("admin"), deleteProductController);
+
 export default router;
