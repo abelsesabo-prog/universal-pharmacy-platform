@@ -1,3 +1,13 @@
+const EXPERIENCE_STYLESHEET = "/experience-layer.css";
+
+if (typeof document !== "undefined" && !document.querySelector('link[data-experience-layer="true"]')) {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = EXPERIENCE_STYLESHEET;
+    link.dataset.experienceLayer = "true";
+    document.head?.appendChild(link);
+}
+
 const DB_NAME = "universal-pharmacy-offline";
 const DB_VERSION = 1;
 const STORE = "events";
