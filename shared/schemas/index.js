@@ -6,6 +6,7 @@
 export const SCHEMA_VERSION = 1;
 
 export const COLLECTIONS = Object.freeze({
+    TENANTS: "tenants",
     USERS: "users",
     BRANCHES: "branches",
     PRODUCTS: "products",
@@ -23,6 +24,7 @@ export const COLLECTIONS = Object.freeze({
 
 export const PRODUCT_SCHEMA = Object.freeze({
     required: [
+        "tenantId",
         "brandName",
         "genericName",
         "dosageForm",
@@ -43,6 +45,7 @@ export const PRODUCT_SCHEMA = Object.freeze({
 
 export const BATCH_SCHEMA = Object.freeze({
     required: [
+        "tenantId",
         "productId",
         "batchNumber",
         "quantity",
@@ -59,6 +62,7 @@ export const BATCH_SCHEMA = Object.freeze({
 
 export const SALE_SCHEMA = Object.freeze({
     required: [
+        "tenantId",
         "branchId",
         "items",
         "paymentMethod",
