@@ -13,7 +13,6 @@ jobs:
   sync-lock:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore: sync npm lockfile')
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,7 +20,8 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-      - name: Commit synchronized lockfile
+      - name: Commit synchronized lockfile on main
+        if: github.event_name == 'push'
         run: |
           if git diff --quiet -- package-lock.json; then
             echo "Lockfile already synchronized."
