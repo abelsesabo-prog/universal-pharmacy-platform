@@ -78,7 +78,7 @@ export async function commitInvoiceAtomic({ tenantId, createdBy, branchId, rows,
                 const duplicateBatch = await batches.findOne({ tenantId, branchId: activeBranch, batchNumber: text(row.batchNumber) }, { session });
                 if (duplicateBatch) fail(`Batch number '${row.batchNumber}' already exists in this branch.`, 409);
 
-                let product = await resolveExistingInvoiceProduct(row, tenantId);
+                let product = await resolveExistingInvoiceProduct(row, tenantId, session);
                 let productCreated = false;
                 if (!product) {
                     product = buildNewProduct(row);
