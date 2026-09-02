@@ -7,6 +7,7 @@ import inventoryRoutes from "./inventoryRoutes.js";
 import salesRoutes from "./salesRoutes.js";
 import auditRoutes from "./auditRoutes.js";
 import branchRoutes from "./branchRoutes.js";
+import invoiceImportRoutes from "./invoiceImportRoutes.js";
 
 const router = express.Router();
 router.get("/health", healthCheck);
@@ -17,4 +18,5 @@ router.use(inventoryRoutes);
 router.use(salesRoutes);
 router.use(auditRoutes);
 router.use(branchRoutes);
+router.use("/invoices", invoiceImportRoutes);
 export default router;
