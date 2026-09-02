@@ -1,12 +1,22 @@
 import express from "express";
+import cors from "cors";
 import config from "./config/config.js";
 import { connectMongoDB } from "./database/mongo.js";
 import routes from "./routes/index.js";
+import { securityHeaders, apiRateLimit } from "./middleware/security.js";
 
 const app = express();
 
-app.use(express.json());
-app.use("/api", routes);
+app.disable("x-powered-by");
+app.use(securityHeaders);
+
+const corsOptions = config.security.corsOrigins.length
+    ? { origin: config.security.corsOrigins }
+    : { origin: false };
+
+app.use(cors(corsOptions));
+app.use(express.json({ limit: "1mb" }));
+app.use("/api", apiRateLimit, routes);
 
 async function startServer() {
     try {
