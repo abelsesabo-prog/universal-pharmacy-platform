@@ -15,6 +15,7 @@ The recovered Master Plan/SRS copies were reviewed as one requirement set becaus
 - Invoice row/file safety boundaries and automated tests.
 - Explainable product/invoice reasoning decision contract.
 - Offline event ledger and replay validation contracts with idempotency/lifecycle protection.
+- IndexedDB offline outbox with authenticated batch synchronization, bounded batches, tenant/device isolation, deterministic event fingerprints and explicit conflict acknowledgements.
 - Master POS and Smart Invoice workspaces.
 - Audit and branch foundations.
 - Human-system executable anatomy contract.
@@ -22,7 +23,7 @@ The recovered Master Plan/SRS copies were reviewed as one requirement set becaus
 
 ## Highest-priority gaps from the Master Plan
 
-1. **Offline synchronization:** IndexedDB/event-ledger synchronization is required by the plan and is not yet a complete universal sync subsystem.
+1. **Offline synchronization:** core outbox-to-server synchronization and deterministic conflict detection are now implemented; remaining work is background/service-worker orchestration, retry/backoff policy, and live multi-device reconciliation verification.
 2. **Regulated pharmacy organs:** interaction/allergy safety, NHIF workflow, expiry relocation and EFD integration remain implementation gaps; TMDA quarantine/disposal is now represented by an executable organ contract.
 3. **Universal business organs:** bookkeeping/expense reconciliation and customer complaint workflows need complete cross-business implementations and audit integration.
 4. **Expansion organs:** EHR, laboratory, inpatient, enterprise wholesale, multi-warehouse logistics and migration remain future domain implementations.
@@ -39,7 +40,7 @@ A lower-level component owns its local state and exposes contracts upward. Highe
 
 ## Next implementation order
 
-1. Complete universal offline synchronization against IndexedDB/device replay and conflict handling.
+1. Finish offline background synchronization with service-worker retry/backoff and live multi-device reconciliation tests.
 2. Add interaction/allergy safety, NHIF, expiry relocation and EFD adapters around canonical domain truth.
 3. Implement financial/complaint organs with cross-domain audit events.
 4. Add production integration tests for regulated stock, audit and transactional boundaries.
