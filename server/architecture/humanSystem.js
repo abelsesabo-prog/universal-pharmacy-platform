@@ -30,6 +30,18 @@ export const HUMAN_SYSTEM_ANATOMY = Object.freeze([
         purpose: "Coordinates products, batches, UOM, stock, POS and regulated stock controls."
     },
     {
+        id: "regulated-stock-tissue",
+        layer: HUMAN_SYSTEM_LAYERS.TISSUE,
+        name: "Regulated Stock Tissue",
+        purpose: "Connects quarantine records to the canonical product and batch without creating a second inventory truth."
+    },
+    {
+        id: "tmda-quarantine-cell",
+        layer: HUMAN_SYSTEM_LAYERS.CELL,
+        name: "TMDA Quarantine Cell",
+        purpose: "Owns the lifecycle record for quarantined stock and its authorised release or disposal disposition."
+    },
+    {
         id: "inventory-tissue",
         layer: HUMAN_SYSTEM_LAYERS.TISSUE,
         name: "Inventory Tissue",
