@@ -46,6 +46,8 @@ export async function createSale({ tenantId, branchId, items = [], payments = []
                 normalizedItems.push({
                     productId,
                     productName: product.brandName || product.genericName,
+                    brandName: product.brandName || null,
+                    genericName: product.genericName || null,
                     quantity: sale.quantity,
                     uom: sale.unit,
                     conversionToBase: sale.conversionToBase,
@@ -81,7 +83,7 @@ export async function createSale({ tenantId, branchId, items = [], payments = []
                 if (remaining > 0) fail(`Insufficient unexpired stock for ${item.productName}.`, 409);
                 const productUpdate = await products.updateOne({ _id: item.productId, tenantId, stockQuantity: { $gte: item.baseQuantity } }, { $inc: { stockQuantity: -item.baseQuantity }, $set: { updatedAt: new Date() } }, { session });
                 if (!productUpdate.modifiedCount) fail(`Product stock is inconsistent for ${item.productName}.`, 409);
-                await saleItems.insertOne({ tenantId, saleId: saleResult.insertedId, productId: item.productId, productName: item.productName, quantity: item.quantity, unitPrice: item.unitPrice, lineTotal: item.lineTotal, uom: item.uom, conversionToBase: item.conversionToBase, baseQuantity: item.baseQuantity, createdAt: new Date() }, { session });
+                await saleItems.insertOne({ tenantId, saleId: saleResult.insertedId, productId: item.productId, productName: item.productName, brandName: item.brandName, genericName: item.genericName, quantity: item.quantity, unitPrice: item.unitPrice, lineTotal: item.lineTotal, uom: item.uom, conversionToBase: item.conversionToBase, baseQuantity: item.baseQuantity, createdAt: new Date() }, { session });
             }
             sale = { ...saleDoc, _id: saleResult.insertedId };
         });
