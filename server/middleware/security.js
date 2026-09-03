@@ -3,6 +3,8 @@
 // Security Middleware
 // ==========================================
 
+import { randomUUID } from "node:crypto";
+
 const WINDOW_MS = 15 * 60 * 1000;
 const MAX_REQUESTS = 300;
 const LOGIN_MAX_REQUESTS = 10;
@@ -20,6 +22,14 @@ function consume(store, key, maxRequests, now = Date.now()) {
     return { allowed: true, retryAfter: 0 };
 }
 
+export function requestCorrelation(req, res, next) {
+    const supplied = String(req.get("X-Request-Id") || "").trim();
+    const requestId = supplied && supplied.length <= 128 ? supplied : randomUUID();
+    req.id = requestId;
+    res.setHeader("X-Request-Id", requestId);
+    next();
+}
+
 export function securityHeaders(req, res, next) {
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Frame-Options", "DENY");
@@ -32,7 +42,7 @@ export function securityHeaders(req, res, next) {
 export function apiRateLimit(req, res, next) {
     const key = req.ip || req.socket.remoteAddress || "unknown";
     const result = consume(buckets, key, MAX_REQUESTS);
-    if (!result.allowed) { res.setHeader("Retry-After", String(result.retryAfter)); return res.status(429).json({ success: false, error: "Too many requests. Please try again later." }); }
+    if (!result.allowed) { res.setHeader("Retry-After", String(result.retryAfter)); return res.status(429).json({ success: false, error: "Too many requests. Please try again later.", requestId: req.id }); }
     return next();
 }
 
@@ -40,7 +50,7 @@ export function loginRateLimit(req, res, next) {
     const ip = req.ip || req.socket.remoteAddress || "unknown";
     const username = String(req.body?.username || "").trim().toLowerCase().slice(0, 128);
     const result = consume(loginBuckets, `${ip}:${username}`, LOGIN_MAX_REQUESTS);
-    if (!result.allowed) { res.setHeader("Retry-After", String(result.retryAfter)); return res.status(429).json({ success: false, error: "Too many sign-in attempts. Please try again later." }); }
+    if (!result.allowed) { res.setHeader("Retry-After", String(result.retryAfter)); return res.status(429).json({ success: false, error: "Too many sign-in attempts. Please try again later.", requestId: req.id }); }
     return next();
 }
 
