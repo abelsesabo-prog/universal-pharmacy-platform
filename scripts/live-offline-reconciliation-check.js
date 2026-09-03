@@ -128,6 +128,7 @@ if (invalidConfiguration.length) {
                 genericName: "Offline Acceptance Demo Product",
                 dosageForm: "tablet",
                 category: "Acceptance Test",
+                barcode: productMarker,
                 stockQuantity: 100
             })
         });
@@ -182,21 +183,31 @@ if (invalidConfiguration.length) {
         const tenantId = claimsA.tenantId;
         const product = await ensureAcceptanceProduct(resolvedTokenA, tenantId);
         try {
-            const first = await sync(resolvedTokenA, deviceA, [event(eventId, tenantId, deviceA, String(product._id), 100)]);
-            assert.equal(first.received, 1);
+            const occurredAt = new Date().toISOString();
+            const first = await sync(resolvedTokenA, deviceA, [{
+                ...event(eventId, tenantId, deviceA, String(product._id), 100),
+                occurredAt
+            }]);
+            assert.equal(first.received, 1, JSON.stringify(first));
             assert.equal(first.applied, 1, `Device A first replay was not applied: ${JSON.stringify(first)}`);
 
-            const duplicate = await sync(resolvedTokenA, deviceA, [event(eventId, tenantId, deviceA, String(product._id), 100)]);
-            assert.equal(duplicate.received, 1);
+            const duplicate = await sync(resolvedTokenA, deviceA, [{
+                ...event(eventId, tenantId, deviceA, String(product._id), 100),
+                occurredAt
+            }]);
+            assert.equal(duplicate.received, 1, JSON.stringify(duplicate));
             assert.equal(duplicate.duplicates, 1, `Device A duplicate was not acknowledged as duplicate: ${JSON.stringify(duplicate)}`);
-            assert.equal(duplicate.conflicts, 0);
+            assert.equal(duplicate.conflicts, 0, JSON.stringify(duplicate));
 
-            const conflict = await sync(resolvedTokenA, deviceA, [event(eventId, tenantId, deviceA, String(product._id), 999)]);
-            assert.equal(conflict.received, 1);
-            assert.equal(conflict.conflicts, 1, `Event fingerprint conflict was not detected: ${JSON.stringify(conflict)}`);
+            const conflict = await sync(resolvedTokenA, deviceA, [{
+                ...event(eventId, tenantId, deviceA, String(product._id), 999),
+                occurredAt
+            }]);
+            assert.equal(conflict.received, 1, JSON.stringify(conflict));
+            assert.equal(conflict.conflicts, 1, `Fingerprint conflict was not detected: ${JSON.stringify(conflict)}`);
 
             const second = await sync(resolvedTokenB, deviceB, [event(`acceptance-sale-b-${suffix}`, tenantId, deviceB, String(product._id), 200)]);
-            assert.equal(second.received, 1);
+            assert.equal(second.received, 1, JSON.stringify(second));
             assert.equal(second.applied, 1, `Device B replay was not applied: ${JSON.stringify(second)}`);
 
             console.log(JSON.stringify({
