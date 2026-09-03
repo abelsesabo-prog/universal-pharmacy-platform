@@ -9,6 +9,13 @@ function fail(message, statusCode = 400) {
 
 const DECIMAL_SCALE = 100;
 const ISO_CURRENCY = /^[A-Z]{3}$/;
+let ledgerIndexPromise;
+
+function ledgerCollection() {
+    const collection = getCollection(COLLECTIONS.LEDGER_JOURNALS);
+    ledgerIndexPromise ||= collection.createIndex({ tenantId: 1, idempotencyKey: 1 }, { unique: true, name: "ledger_tenant_idempotency_unique" });
+    return { collection, ready: ledgerIndexPromise };
+}
 
 export function toMinorUnits(value) {
     if (typeof value === "bigint") return value;
@@ -77,7 +84,8 @@ export function buildJournal({ tenantId, branchId, currency = "TZS", referenceTy
 
 export async function postJournal(input = {}) {
     const journal = buildJournal(input);
-    const collection = getCollection(COLLECTIONS.LEDGER_JOURNALS);
+    const { collection, ready } = ledgerCollection();
+    await ready;
     const existing = await collection.findOne({ tenantId: journal.tenantId, idempotencyKey: journal.idempotencyKey });
     if (existing) return { journal: existing, duplicate: true };
 
@@ -101,24 +109,26 @@ export async function listJournals({ tenantId, branchId, from, to, limit = 100, 
         filter.createdAt = {};
         if (from) filter.createdAt.$gte = new Date(from);
         if (to) filter.createdAt.$lt = new Date(to);
-        if (Number.isNaN(filter.createdAt.$gte?.getTime?.()) || Number.isNaN(filter.createdAt.$lt?.getTime?.())) fail("Invalid journal date range.");
+        if ((filter.createdAt.$gte && Number.isNaN(filter.createdAt.$gte.getTime())) || (filter.createdAt.$lt && Number.isNaN(filter.createdAt.$lt.getTime()))) fail("Invalid journal date range.");
     }
     const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 200);
     const safeSkip = Math.max(Number(skip) || 0, 0);
-    return collectionForRead().find(filter).sort({ createdAt: -1 }).skip(safeSkip).limit(safeLimit).toArray();
-}
-
-function collectionForRead() {
-    return getCollection(COLLECTIONS.LEDGER_JOURNALS);
+    const { collection, ready } = ledgerCollection();
+    await ready;
+    return collection.find(filter).sort({ createdAt: -1 }).skip(safeSkip).limit(safeLimit).toArray();
 }
 
 export async function trialBalance({ tenantId, branchId, currency = "TZS" } = {}) {
-    const journals = await listJournals({ tenantId, branchId, limit: 200 });
+    if (!String(tenantId || "").trim()) fail("Tenant context is required.", 403);
     const normalizedCurrency = String(currency || "").trim().toUpperCase();
     if (!ISO_CURRENCY.test(normalizedCurrency)) fail("Currency must be a three-letter ISO-style code.");
+    const filter = { tenantId: String(tenantId).trim(), currency: normalizedCurrency };
+    if (String(branchId || "").trim()) filter.branchId = String(branchId).trim();
+    const { collection, ready } = ledgerCollection();
+    await ready;
+    const journals = await collection.find(filter, { projection: { lines: 1 } }).toArray();
     const accounts = {};
     for (const journal of journals) {
-        if (journal.currency !== normalizedCurrency) continue;
         for (const line of journal.lines || []) {
             const account = String(line.account || "");
             const minor = BigInt(line.amountMinor || 0);
