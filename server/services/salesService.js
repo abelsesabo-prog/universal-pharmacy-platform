@@ -12,16 +12,8 @@ function fail(message, statusCode = 400) { const error = new Error(message); err
 function id(value, label) { if (!ObjectId.isValid(value)) fail(`Invalid ${label}.`); return new ObjectId(value); }
 function qty(value) { const n = Number(value); if (!Number.isFinite(n) || n <= 0) fail("Sale quantity must be greater than zero."); return n; }
 
-const PAYMENT_ACCOUNTS = Object.freeze({
-    CASH: "1000", MPESA: "1020", "M-PESA": "1020", "MIXX BY YAS": "1020", MIXX: "1020", "MIX BY YAS": "1020",
-    "AIRTEL MONEY": "1020", AIRTEL: "1020", HALOPESA: "1020", "HALO PESA": "1020", "T-PESA": "1020", TPESA: "1020",
-    BANK: "1010", CARD: "1010", VISA: "1010", INSURANCE: "1100", RECEIVABLE: "1100"
-});
-
-function paymentAccount(method) {
-    const key = String(method || "").trim().toUpperCase();
-    return PAYMENT_ACCOUNTS[key] || null;
-}
+const PAYMENT_ACCOUNTS = Object.freeze({ CASH: "1000", MPESA: "1020", "M-PESA": "1020", "MIXX BY YAS": "1020", MIXX: "1020", "MIX BY YAS": "1020", "AIRTEL MONEY": "1020", AIRTEL: "1020", HALOPESA: "1020", "HALO PESA": "1020", "T-PESA": "1020", TPESA: "1020", BANK: "1010", CARD: "1010", VISA: "1010", INSURANCE: "1100", RECEIVABLE: "1100" });
+function paymentAccount(method) { return PAYMENT_ACCOUNTS[String(method || "").trim().toUpperCase()] || null; }
 
 export async function createSale({ tenantId, branchId, items = [], payments = [], customerId = null, cashierId = null, discount = 0, idempotencyKey = null }) {
     if (!tenantId) fail("Tenant context is required.", 403);
@@ -33,19 +25,24 @@ export async function createSale({ tenantId, branchId, items = [], payments = []
     if (!Number.isFinite(discountValue) || discountValue < 0) fail("Discount must be zero or greater.");
     const journalKey = String(idempotencyKey || "").trim();
     if (!journalKey) fail("Sale idempotencyKey is required for accounting-safe completion.");
-
     await assertPersistedPeriodOpen({ tenantId, at: new Date() });
     await ensureChartOfAccounts(tenantId);
 
     const client = getMongoClient();
     const db = client.db();
+    const sales = db.collection(COLLECTIONS.SALES);
+    const existing = await sales.findOne({ tenantId, idempotencyKey: journalKey });
+    if (existing) {
+        const ledger = await db.collection(COLLECTIONS.LEDGER_JOURNALS).findOne({ tenantId, idempotencyKey: `SALE:${journalKey}` });
+        return { ...existing, ledgerJournalId: ledger?._id || existing.ledgerJournalId || null, ledgerDuplicate: true };
+    }
+
     const session = client.startSession();
     try {
         let sale;
         await session.withTransaction(async () => {
             const products = db.collection(COLLECTIONS.PRODUCTS);
             const batches = db.collection(COLLECTIONS.BATCHES);
-            const sales = db.collection(COLLECTIONS.SALES);
             const saleItems = db.collection(COLLECTIONS.SALE_ITEMS);
             const movements = db.collection(COLLECTIONS.STOCK_MOVEMENTS);
             const normalizedItems = [];
@@ -74,9 +71,8 @@ export async function createSale({ tenantId, branchId, items = [], payments = []
 
             const now = new Date();
             const today = new Date(); today.setHours(0, 0, 0, 0);
-            const saleDoc = { tenantId, branchId: branch, customerId: customerId ? String(customerId).trim() : null, cashierId: cashierId ? String(cashierId).trim() : null, subtotal, discount: discountValue, total, payments: payments.map(payment => ({ method: String(payment.method || "").trim().toUpperCase(), provider: payment.provider ? String(payment.provider).trim().toUpperCase() : null, amount: Number(payment.amount), currency: String(payment.currency || "TZS").trim().toUpperCase() })), status: "COMPLETED", createdAt: now };
+            const saleDoc = { tenantId, branchId: branch, customerId: customerId ? String(customerId).trim() : null, cashierId: cashierId ? String(cashierId).trim() : null, subtotal, discount: discountValue, total, idempotencyKey: journalKey, payments: payments.map(payment => ({ method: String(payment.method || "").trim().toUpperCase(), provider: payment.provider ? String(payment.provider).trim().toUpperCase() : null, amount: Number(payment.amount), currency: String(payment.currency || "TZS").trim().toUpperCase() })), status: "COMPLETED", createdAt: now };
             const saleResult = await sales.insertOne(saleDoc, { session });
-
             const paymentLines = payments.map((payment) => ({ account: paymentAccount(payment.method), side: "DEBIT", amount: Number(payment.amount).toFixed(2), memo: `${String(payment.method).trim().toUpperCase()} settlement` }));
 
             for (const item of normalizedItems) {
