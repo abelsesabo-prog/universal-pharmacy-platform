@@ -12,6 +12,7 @@ import offlineSyncRoutes from "./offlineSyncRoutes.js";
 import tmdaQuarantineRoutes from "./tmdaQuarantineRoutes.js";
 import financialRoutes from "./financialRoutes.js";
 import complaintRoutes from "./complaintRoutes.js";
+import universalCoreRoutes from "./universalCoreRoutes.js";
 
 const router = express.Router();
 router.get("/health", healthCheck);
@@ -27,4 +28,5 @@ router.use("/offline", offlineSyncRoutes);
 router.use("/tmda", tmdaQuarantineRoutes);
 router.use(financialRoutes);
 router.use(complaintRoutes);
+router.use(universalCoreRoutes);
 export default router;
