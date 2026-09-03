@@ -58,6 +58,7 @@ if (invalidConfiguration.length) {
     const deviceA = `acceptance-device-a-${suffix}`;
     const deviceB = `acceptance-device-b-${suffix}`;
     const eventId = `acceptance-sale-${suffix}`;
+    const productMarker = `OFFLINE_ACCEPTANCE_${suffix}`;
 
     function decodeClaims(token) {
         try {
@@ -91,63 +92,65 @@ if (invalidConfiguration.length) {
         return existingToken || login(username, password, label);
     }
 
-    async function createAcceptanceProduct(token, tenantId) {
-        const product = {
-            brandName: `Acceptance Test ${suffix}`,
-            genericName: `Acceptance Offline ${suffix}`,
-            dosageForm: "tablet",
-            category: "acceptance-test",
-            strength: 1,
-            strengthUnit: "mg",
-            manufacturer: "Universal Pharmacy Platform",
-            baseUnit: "piece",
-            uomMatrix: [{ unit: "piece", conversionFactor: 1, enabled: true, price: 100 }],
-            stockQuantity: 10,
-            barcode: `ACCEPT-${suffix}`
-        };
-
+    async function request(token, path, options = {}) {
         let response;
         try {
-            response = await fetch(`${baseUrl}/api/products`, {
-                method: "POST",
+            response = await fetch(`${baseUrl}${path}`, {
+                ...options,
                 headers: {
                     "content-type": "application/json",
+                    ...(options.headers || {}),
                     authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify(product)
+                }
             });
         } catch (error) {
-            throw new Error(`Acceptance product creation could not reach ${baseUrl}: ${error.message}`);
+            throw new Error(`Request ${path} could not reach ${baseUrl}: ${error.message}`);
         }
-
         const body = await response.json().catch(() => ({}));
-        assert.equal(response.ok, true, `Acceptance product creation failed: ${JSON.stringify(body)}`);
-        assert.ok(body.product?._id, "Acceptance product creation did not return a product ID.");
-        assert.equal(body.product.tenantId, tenantId);
-        return body.product;
+        return { response, body };
     }
 
-    async function sync(token, deviceId, tenantId, events) {
-        let response;
-        try {
-            response = await fetch(`${baseUrl}/api/offline/sync`, {
-                method: "POST",
-                headers: {
-                    "content-type": "application/json",
-                    authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify({ tenantId, deviceId, events })
-            });
-        } catch (error) {
-            throw new Error(`Offline sync could not reach ${baseUrl}: ${error.message}`);
-        }
-        const body = await response.json().catch(() => ({}));
+    async function sync(token, deviceId, events) {
+        const { response, body } = await request(token, "/api/offline/sync", {
+            method: "POST",
+            body: JSON.stringify({ deviceId, events })
+        });
         assert.equal(response.ok, true, JSON.stringify(body));
         assert.equal(body.success, true);
         return body;
     }
 
-    const saleEvent = (id, tenantId, deviceId, productId, amount) => ({
+    async function ensureAcceptanceProduct(token, tenantId) {
+        const created = await request(token, "/api/products", {
+            method: "POST",
+            body: JSON.stringify({
+                brandName: productMarker,
+                genericName: "Offline Acceptance Demo Product",
+                dosageForm: "tablet",
+                category: "Acceptance Test",
+                strength: "500",
+                strengthUnit: "mg",
+                baseUnit: "piece",
+                uomMatrix: [
+                    { unit: "piece", conversionToBase: 1, sellingEnabled: true, price: 100 },
+                    { unit: "strip", conversionToBase: 10, sellingEnabled: true, price: 1000 }
+                ],
+                barcode: productMarker,
+                stockQuantity: 100
+            })
+        });
+        assert.equal(created.response.ok, true, `Acceptance product creation failed: ${JSON.stringify(created.body)}`);
+        assert.ok(created.body.product?._id, `Acceptance product creation returned no product id: ${JSON.stringify(created.body)}`);
+        assert.equal(String(created.body.product.tenantId), tenantId);
+        return created.body.product;
+    }
+
+    async function cleanupAcceptanceProduct(token, productId) {
+        if (!productId) return;
+        await request(token, `/api/products/${encodeURIComponent(productId)}`, { method: "DELETE" });
+    }
+
+    const event = (id, tenantId, deviceId, productId, amount) => ({
         eventId: id,
         tenantId,
         deviceId,
@@ -155,15 +158,15 @@ if (invalidConfiguration.length) {
         occurredAt: new Date().toISOString(),
         sequence: 1,
         payload: {
-            acceptance: true,
-            productId: String(productId),
+            branchId: null,
+            productId,
             quantity: 1,
             baseQuantity: 1,
             uom: "piece",
             conversionToBase: 1,
             unitPrice: amount,
             lineTotal: amount,
-            payments: [{ method: "CASH", amount }]
+            acceptance: true
         }
     });
 
@@ -190,37 +193,40 @@ if (invalidConfiguration.length) {
         if (configuredTenantId) assert.equal(claimsA.tenantId, configuredTenantId, "Acceptance tenant does not match the authenticated tenant.");
 
         const tenantId = claimsA.tenantId;
-        const product = await createAcceptanceProduct(resolvedTokenA, tenantId);
+        const product = await ensureAcceptanceProduct(resolvedTokenA, tenantId);
+        try {
+            const first = await sync(resolvedTokenA, deviceA, [event(eventId, tenantId, deviceA, String(product._id), 100)]);
+            assert.equal(first.received, 1);
+            assert.equal(first.applied, 1);
 
-        const first = await sync(resolvedTokenA, deviceA, tenantId, [saleEvent(eventId, tenantId, deviceA, product._id, 100)]);
-        assert.equal(first.received, 1);
-        assert.equal(first.applied, 1);
+            const duplicate = await sync(resolvedTokenA, deviceA, [event(eventId, tenantId, deviceA, String(product._id), 100)]);
+            assert.equal(duplicate.received, 1);
+            assert.equal(duplicate.duplicates, 1);
+            assert.equal(duplicate.conflicts, 0);
 
-        const duplicate = await sync(resolvedTokenA, deviceA, tenantId, [saleEvent(eventId, tenantId, deviceA, product._id, 100)]);
-        assert.equal(duplicate.received, 1);
-        assert.equal(duplicate.duplicates, 1);
-        assert.equal(duplicate.conflicts, 0);
+            const conflict = await sync(resolvedTokenA, deviceA, [event(eventId, tenantId, deviceA, String(product._id), 999)]);
+            assert.equal(conflict.received, 1);
+            assert.equal(conflict.conflicts, 1);
 
-        const conflict = await sync(resolvedTokenA, deviceA, tenantId, [saleEvent(eventId, tenantId, deviceA, product._id, 999)]);
-        assert.equal(conflict.received, 1);
-        assert.equal(conflict.conflicts, 1);
+            const second = await sync(resolvedTokenB, deviceB, [event(`acceptance-sale-b-${suffix}`, tenantId, deviceB, String(product._id), 200)]);
+            assert.equal(second.received, 1);
+            assert.equal(second.applied, 1);
 
-        const second = await sync(resolvedTokenB, deviceB, tenantId, [saleEvent(`acceptance-sale-b-${suffix}`, tenantId, deviceB, product._id, 200)]);
-        assert.equal(second.received, 1);
-        assert.equal(second.applied, 1);
-
-        console.log(JSON.stringify({
-            success: true,
-            tenantId,
-            acceptanceProductId: String(product._id),
-            devices: [deviceA, deviceB],
-            checks: [
-                "device A applied",
-                "device A duplicate acknowledged",
-                "event fingerprint conflict detected",
-                "device B independently reconciled"
-            ]
-        }, null, 2));
+            console.log(JSON.stringify({
+                success: true,
+                tenantId,
+                productId: String(product._id),
+                devices: [deviceA, deviceB],
+                checks: [
+                    "device A applied",
+                    "device A duplicate acknowledged",
+                    "event fingerprint conflict detected",
+                    "device B independently reconciled"
+                ]
+            }, null, 2));
+        } finally {
+            await cleanupAcceptanceProduct(resolvedTokenA, String(product._id));
+        }
     } catch (error) {
         console.error("Live offline reconciliation acceptance failed:", error.message);
         process.exitCode = 1;
