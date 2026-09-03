@@ -21,4 +21,6 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Architecture drift guard
+        run: node scripts/architecture-drift-check.js
       - run: npm test
