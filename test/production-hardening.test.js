@@ -56,7 +56,7 @@ test("declared protected routes remain authenticated after route middleware scop
         ["GET", "/api/finance/entries"],
         ["GET", "/api/complaints"],
         ["POST", "/api/offline/sync"],
-        ["POST", "/api/quarantine"],
+        ["POST", "/api/tmda/quarantine"],
         ["GET", "/api/pharmacy/expiry/watch"],
         ["GET", "/api/core/users"]
     ];
