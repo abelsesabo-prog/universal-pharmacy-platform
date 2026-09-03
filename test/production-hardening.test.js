@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 import http from "node:http";
 import { createApp } from "../server/app.js";
 
-function request(server, path, headers = {}) {
+function request(server, path, headers = {}, method = "GET") {
     return new Promise((resolve, reject) => {
         const address = server.address();
-        const req = http.request({ hostname: "127.0.0.1", port: address.port, path, method: "GET", headers }, (res) => {
+        const req = http.request({ hostname: "127.0.0.1", port: address.port, path, method, headers }, (res) => {
             let body = "";
             res.setEncoding("utf8");
             res.on("data", (chunk) => { body += chunk; });
@@ -40,6 +40,32 @@ test("API errors do not expose internal exception details", async () => {
         assert.equal(payload.success, false);
         assert.equal(payload.error, "API route not found.");
         assert.match(payload.requestId, /^[0-9a-f-]{36}$/);
+    } finally {
+        await new Promise((resolve) => server.close(resolve));
+    }
+});
+
+test("declared protected routes remain authenticated after route middleware scoping", async () => {
+    const server = http.createServer(createApp());
+    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const protectedRoutes = [
+        ["GET", "/api/batches"],
+        ["GET", "/api/sales"],
+        ["GET", "/api/audit-logs"],
+        ["GET", "/api/branches"],
+        ["GET", "/api/finance/entries"],
+        ["GET", "/api/complaints"],
+        ["POST", "/api/offline/sync"],
+        ["POST", "/api/quarantine"],
+        ["GET", "/api/pharmacy/expiry/watch"],
+        ["GET", "/api/core/users"]
+    ];
+
+    try {
+        for (const [method, path] of protectedRoutes) {
+            const response = await request(server, path, {}, method);
+            assert.equal(response.statusCode, 401, `${method} ${path} must require authentication`);
+        }
     } finally {
         await new Promise((resolve) => server.close(resolve));
     }
