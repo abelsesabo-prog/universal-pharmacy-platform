@@ -3,7 +3,7 @@ import { requireAuth, requireRole } from "../middleware/auth.js";
 import { createBranchController, listBranchesController } from "../controllers/branchController.js";
 
 const router = express.Router();
-router.use(requireAuth);
-router.get("/branches", listBranchesController);
-router.post("/branches", requireRole("admin", "manager"), createBranchController);
+router.get("/branches", requireAuth, listBranchesController);
+router.post("/branches", requireAuth, requireRole("admin", "manager"), createBranchController);
+
 export default router;
