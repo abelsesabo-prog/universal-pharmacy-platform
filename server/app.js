@@ -3,7 +3,7 @@ import cors from "cors";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import config from "./config/config.js";
-import { connectMongoDB } from "./database/mongo.js";
+import { connectMongoDB, getDatabase } from "./database/mongo.js";
 import routes from "./routes/index.js";
 import { securityHeaders, apiRateLimit, requestCorrelation } from "./middleware/security.js";
 
@@ -14,6 +14,7 @@ const CLIENT_ROOT = path.resolve(__dirname, "../client");
 export function createApp() {
     const app = express();
     app.disable("x-powered-by");
+    app.set("trust proxy", 1);
     app.use(requestCorrelation);
     app.use(securityHeaders);
     const corsOptions = config.security.corsOrigins.length ? { origin: config.security.corsOrigins } : { origin: false };
@@ -27,7 +28,7 @@ export function createApp() {
     app.use((error, req, res, next) => {
         if (res.headersSent) return next(error);
         const status = Number.isInteger(error.statusCode) ? error.statusCode : 500;
-        if (status >= 500) console.error("Unhandled request error:", { requestId: req.id, error });
+        if (status >= 500) console.error(JSON.stringify({ level: "error", type: "unhandled_request", requestId: req.id, method: req.method, path: req.path, message: error.message, stack: error.stack }));
         return res.status(status).json({
             success: false,
             error: status >= 500 ? "Internal server error." : error.message,
