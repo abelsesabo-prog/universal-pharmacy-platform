@@ -9,20 +9,12 @@ import { assertPeriodOpen } from "./accountingPolicyService.js";
 
 function fail(message, statusCode = 400) { const error = new Error(message); error.statusCode = statusCode; throw error; }
 function text(value) { return String(value ?? "").trim(); }
+function positiveInteger(value, label) { const n = Number(value); if (!Number.isInteger(n) || n <= 0) fail(`${label} must be a positive whole number.`); return n; }
 function positive(value, label) { const n = Number(value); if (!Number.isFinite(n) || n <= 0) fail(`${label} must be greater than zero.`); return n; }
 function objectId(value, label) { if (!ObjectId.isValid(value)) fail(`Invalid ${label}.`); return new ObjectId(value); }
 function date(value, label) { const d = new Date(value); if (!value || Number.isNaN(d.getTime())) fail(`${label} is invalid.`); return d; }
 
-const PAYMENT_ACCOUNTS = Object.freeze({
-    CASH: "1000",
-    BANK: "1010",
-    MPESA: "1020",
-    MIXX: "1020",
-    AIRTEL: "1020",
-    HALOPESA: "1020",
-    TPESA: "1020",
-    CREDIT: "2000"
-});
+const PAYMENT_ACCOUNTS = Object.freeze({ CASH: "1000", BANK: "1010", MPESA: "1020", MIXX: "1020", AIRTEL: "1020", HALOPESA: "1020", TPESA: "1020", CREDIT: "2000" });
 
 function paymentAccount(paymentMethod) {
     const normalized = text(paymentMethod).toUpperCase().replace(/[\s-]+/g, "_");
@@ -37,9 +29,10 @@ function normalizeItem(item, index) {
     const productId = objectId(item?.productId, `product ID at item ${index + 1}`);
     const batchNumber = text(item?.batchNumber);
     if (!batchNumber) fail(`Batch number is required at item ${index + 1}.`);
-    const quantity = positive(item?.quantity, `Quantity at item ${index + 1}`);
-    const conversionToBase = positive(item?.conversionToBase ?? 1, `Conversion to base at item ${index + 1}`);
-    const unitCost = text(item?.unitCost) || "";
+    const quantity = positiveInteger(item?.quantity, `Quantity at item ${index + 1}`);
+    const conversionToBase = positiveInteger(item?.conversionToBase ?? 1, `Conversion to base at item ${index + 1}`);
+    const unitCost = text(item?.unitCost);
+    if (!unitCost) fail(`Unit cost is required at item ${index + 1}.`);
     toMinorUnits(unitCost);
     const expiryDate = date(item?.expiryDate, `Expiry date at item ${index + 1}`);
     if (expiryDate < new Date(new Date().setHours(0, 0, 0, 0))) fail(`Item ${index + 1} is already expired.`);
@@ -49,7 +42,8 @@ function normalizeItem(item, index) {
 export async function receivePurchase({ tenantId, branchId = null, supplierId = null, invoiceNumber, paymentMethod = "CREDIT", occurredAt = new Date(), idempotencyKey, createdBy = null, items = [], note = null } = {}) {
     const tenant = text(tenantId);
     if (!tenant) fail("Tenant context is required.", 403);
-    if (!text(idempotencyKey)) fail("Purchase idempotency key is required.");
+    const key = text(idempotencyKey);
+    if (!key) fail("Purchase idempotency key is required.");
     const invoice = text(invoiceNumber);
     if (!invoice) fail("Supplier invoice number is required.");
     if (!Array.isArray(items) || !items.length) fail("At least one purchase item is required.");
@@ -61,28 +55,30 @@ export async function receivePurchase({ tenantId, branchId = null, supplierId = 
     assertPeriodOpen({ at: occurred });
     await ensureChartOfAccounts(tenant);
 
-    const client = getMongoClient();
-    const db = client.db();
-    const session = client.startSession();
+    const db = getMongoClient().db();
+    const purchases = db.collection(COLLECTIONS.PURCHASES);
+    await purchases.createIndex({ tenantId: 1, idempotencyKey: 1 }, { unique: true, name: "purchase_tenant_idempotency_unique" });
+    const already = await purchases.findOne({ tenantId: tenant, idempotencyKey: key });
+    if (already) return { purchase: already, duplicate: true };
+
+    const session = getMongoClient().startSession();
     try {
         let result;
         await session.withTransaction(async () => {
-            const purchases = db.collection(COLLECTIONS.PURCHASES);
             const purchaseItems = db.collection(COLLECTIONS.PURCHASE_ITEMS);
             const products = db.collection(COLLECTIONS.PRODUCTS);
             const batches = db.collection(COLLECTIONS.BATCHES);
             const movements = db.collection(COLLECTIONS.STOCK_MOVEMENTS);
-            const existing = await purchases.findOne({ tenantId: tenant, idempotencyKey }, { session });
-            if (existing) { result = { purchase: existing, duplicate: true }; return; }
+            const concurrent = await purchases.findOne({ tenantId: tenant, idempotencyKey: key }, { session });
+            if (concurrent) { result = { purchase: concurrent, duplicate: true }; return; }
 
-            await purchases.createIndex({ tenantId: 1, idempotencyKey: 1 }, { unique: true, name: "purchase_tenant_idempotency_unique" });
             const now = new Date();
             let totalMinor = 0n;
             const createdItems = [];
             for (const item of normalizedItems) {
                 const product = await products.findOne({ _id: item.productId, tenantId: tenant }, { session });
                 if (!product) fail("Product not found in this tenant.", 404);
-                const lineMinor = toMinorUnits(item.unitCost) * BigInt(Math.round(item.quantity));
+                const lineMinor = toMinorUnits(item.unitCost) * BigInt(item.quantity);
                 totalMinor += lineMinor;
                 const baseQuantity = item.quantity * item.conversionToBase;
                 const batch = { tenantId: tenant, productId: item.productId, batchNumber: item.batchNumber, quantity: baseQuantity, expiryDate: item.expiryDate, branchId: activeBranch, costPrice: Number(item.unitCost) / item.conversionToBase, sellingPrice: null, supplierId: item.supplierId || text(supplierId) || null, createdBy, createdAt: now, updatedAt: now };
@@ -95,22 +91,9 @@ export async function receivePurchase({ tenantId, branchId = null, supplierId = 
             }
 
             const total = fromMinorUnits(totalMinor);
-            const purchaseDoc = { tenantId: tenant, branchId: activeBranch, supplierId: text(supplierId) || null, invoiceNumber: invoice, paymentMethod: payment.key, total, status: "RECEIVED", occurredAt: occurred, createdBy, note: text(note) || null, itemCount: createdItems.length, idempotencyKey, createdAt: now, updatedAt: now };
+            const purchaseDoc = { tenantId: tenant, branchId: activeBranch, supplierId: text(supplierId) || null, invoiceNumber: invoice, paymentMethod: payment.key, total, status: "RECEIVED", occurredAt: occurred, createdBy, note: text(note) || null, itemCount: createdItems.length, idempotencyKey: key, createdAt: now, updatedAt: now };
             const purchaseResult = await purchases.insertOne(purchaseDoc, { session });
-            const journal = await postJournalInSession({
-                session,
-                tenantId: tenant,
-                branchId: activeBranch,
-                currency: "TZS",
-                referenceType: "PURCHASE",
-                referenceId: String(purchaseResult.insertedId),
-                idempotencyKey: `PURCHASE:${idempotencyKey}`,
-                description: `Supplier purchase ${invoice}`,
-                lines: [
-                    { account: "1200", side: "DEBIT", amount: total },
-                    { account: payment.account, side: "CREDIT", amount: total }
-                ]
-            });
+            const journal = await postJournalInSession({ session, tenantId: tenant, branchId: activeBranch, currency: "TZS", referenceType: "PURCHASE", referenceId: String(purchaseResult.insertedId), idempotencyKey: `PURCHASE:${key}`, description: `Supplier purchase ${invoice}`, lines: [{ account: "1200", side: "DEBIT", amount: total }, { account: payment.account, side: "CREDIT", amount: total }] });
             result = { purchase: { ...purchaseDoc, _id: purchaseResult.insertedId }, items: createdItems, journal: journal.journal, duplicate: false };
         });
         return result;
