@@ -82,23 +82,30 @@ export function buildJournal({ tenantId, branchId, currency = "TZS", referenceTy
     });
 }
 
-export async function postJournal(input = {}) {
-    const journal = buildJournal(input);
+async function insertJournal(journal, session = null) {
     const { collection, ready } = ledgerCollection();
     await ready;
-    const existing = await collection.findOne({ tenantId: journal.tenantId, idempotencyKey: journal.idempotencyKey });
+    const options = session ? { session } : {};
+    const existing = await collection.findOne({ tenantId: journal.tenantId, idempotencyKey: journal.idempotencyKey }, options);
     if (existing) return { journal: existing, duplicate: true };
-
     try {
-        const result = await collection.insertOne(journal);
+        const result = await collection.insertOne(journal, options);
         return { journal: { ...journal, _id: result.insertedId }, duplicate: false };
     } catch (error) {
         if (error?.code === 11000) {
-            const raced = await collection.findOne({ tenantId: journal.tenantId, idempotencyKey: journal.idempotencyKey });
+            const raced = await collection.findOne({ tenantId: journal.tenantId, idempotencyKey: journal.idempotencyKey }, options);
             if (raced) return { journal: raced, duplicate: true };
         }
         throw error;
     }
+}
+
+export async function postJournal(input = {}) { return insertJournal(buildJournal(input)); }
+
+export async function postJournalInSession(input = {}) {
+    if (!input.session) fail("MongoDB transaction session is required for atomic journal posting.");
+    const { session, ...journalInput } = input;
+    return insertJournal(buildJournal(journalInput), session);
 }
 
 export async function listJournals({ tenantId, branchId, from, to, limit = 100, skip = 0 } = {}) {
@@ -128,21 +135,14 @@ export async function trialBalance({ tenantId, branchId, currency = "TZS" } = {}
     await ready;
     const journals = await collection.find(filter, { projection: { lines: 1 } }).toArray();
     const accounts = {};
-    for (const journal of journals) {
-        for (const line of journal.lines || []) {
-            const account = String(line.account || "");
-            const minor = BigInt(line.amountMinor || 0);
-            if (!accounts[account]) accounts[account] = { debitMinor: 0n, creditMinor: 0n };
-            if (line.side === "DEBIT") accounts[account].debitMinor += minor;
-            if (line.side === "CREDIT") accounts[account].creditMinor += minor;
-        }
+    for (const journal of journals) for (const line of journal.lines || []) {
+        const account = String(line.account || "");
+        const minor = BigInt(line.amountMinor || 0);
+        if (!accounts[account]) accounts[account] = { debitMinor: 0n, creditMinor: 0n };
+        if (line.side === "DEBIT") accounts[account].debitMinor += minor;
+        if (line.side === "CREDIT") accounts[account].creditMinor += minor;
     }
-    return Object.entries(accounts).map(([account, value]) => ({
-        account,
-        debit: fromMinorUnits(value.debitMinor),
-        credit: fromMinorUnits(value.creditMinor),
-        net: fromMinorUnits(value.debitMinor - value.creditMinor)
-    })).sort((a, b) => a.account.localeCompare(b.account));
+    return Object.entries(accounts).map(([account, value]) => ({ account, debit: fromMinorUnits(value.debitMinor), credit: fromMinorUnits(value.creditMinor), net: fromMinorUnits(value.debitMinor - value.creditMinor) })).sort((a, b) => a.account.localeCompare(b.account));
 }
 
 export { DECIMAL_SCALE };
