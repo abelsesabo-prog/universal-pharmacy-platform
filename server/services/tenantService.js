@@ -2,7 +2,7 @@ import { getCollection } from "./index.js";
 import { COLLECTIONS } from "../../shared/schemas/index.js";
 
 const STATES = ["PROVISIONED", "ACTIVE", "SUSPENDED", "ARCHIVED"];
-const ROLES = ["cashier", "clerk", "pharmacist", "manager", "compliance_officer", "system_admin"];
+const ROLES = ["cashier", "clerk", "staff", "pharmacist", "manager", "compliance_officer", "system_admin", "admin"];
 
 function fail(message, statusCode = 400) { const error = new Error(message); error.statusCode = statusCode; throw error; }
 function text(value) { return String(value ?? "").trim(); }
@@ -47,5 +47,5 @@ export async function exportTenantSnapshot({ tenantId } = {}) {
     const names = Object.values(COLLECTIONS);
     const snapshot = {};
     for (const name of names) snapshot[name] = await getCollection(name).find({ tenantId: id }).toArray();
-    return { schemaVersion: 9, tenantId: id, exportedAt: new Date().toISOString(), collections: snapshot };
+    return { schemaVersion: 11, tenantId: id, exportedAt: new Date().toISOString(), collections: snapshot };
 }
