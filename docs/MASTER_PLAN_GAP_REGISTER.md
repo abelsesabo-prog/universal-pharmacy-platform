@@ -27,6 +27,8 @@ The implementation target is `Universal_Multi_Tenant_Business_Optimization_Engin
 - Expiry watch plus controlled inter-branch relocation planning/execution with transfer movement evidence.
 - Provider-neutral EFD document queue with idempotency protection; vendor/network submission remains adapter work.
 - Time-bound, scope-bound delegated-action records with optional value caps and revocation.
+- Accounting policy hardening: supported currency/tax policy validation, exact minor-unit tax calculation, exchange-rate provenance fields and closed-period guards.
+- Delegated-action route enforcement for financial posting, with explicit scopes and manager/system-admin delegation administration.
 
 ## Remaining gaps
 
@@ -37,9 +39,9 @@ The implementation target is `Universal_Multi_Tenant_Business_Optimization_Engin
 - Browser-level service-worker/offline acceptance still needs verification on the target devices and network failure modes.
 
 ### B. Financial and control hardening
-- Full accounting policy implementation: chart of accounts, tax rules, exact money representation policy, exchange-rate provenance, period controls and financial statements generated from journal truth.
-- Atomic cross-domain posting for sales/refunds/expenses/claims/quarantine write-offs where database transaction support is required.
-- Emergency delegation must be enforced by every sensitive action, not merely stored as a delegation record.
+- Full accounting policy remains: chart of accounts, complete statutory tax rules, approved financial period workflow and financial statements generated/reconciled from journal truth.
+- Atomic cross-domain posting for sales/refunds/expenses/claims/quarantine write-offs still needs end-to-end wiring where database transaction support is required.
+- Delegation enforcement still needs to be wired into every sensitive business action that permits delegation; the reusable enforcement boundary and financial routes are now implemented.
 - Backup scheduling, retention, restore drills, RPO/RTO and portable export need production operational evidence.
 
 ### C. Pharmacy intelligence and regulatory depth
@@ -60,4 +62,4 @@ A requirement is not marked complete merely because a route or UI exists. Comple
 
 ## Current assessment
 
-The branch has moved beyond the earlier ~95% pharmacy-core estimate by closing several previously explicit gaps. It should not be called 100% of the complete v3.0 SRS yet because the SRS deliberately contains later hospital, laboratory, enterprise, regulatory-provider and production-operations phases. The remaining work is now concentrated in integration evidence, financial/control hardening, regulated external adapters and later expansion organs rather than the core POS/inventory/offline architecture.
+The branch has moved beyond the earlier ~95% pharmacy-core estimate. This pass closes concrete accounting-policy and delegation-control gaps without pretending that external provider integrations or production operational evidence exist. The remaining work is concentrated in provider adapters, complete accounting integration, comprehensive delegation wiring, production recovery evidence, clinical knowledge governance, and later hospital/laboratory/enterprise phases.
