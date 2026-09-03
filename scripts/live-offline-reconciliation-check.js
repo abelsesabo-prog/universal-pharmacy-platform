@@ -91,7 +91,43 @@ if (invalidConfiguration.length) {
         return existingToken || login(username, password, label);
     }
 
-    async function sync(token, deviceId, events) {
+    async function createAcceptanceProduct(token, tenantId) {
+        const product = {
+            brandName: `Acceptance Test ${suffix}`,
+            genericName: `Acceptance Offline ${suffix}`,
+            dosageForm: "tablet",
+            category: "acceptance-test",
+            strength: 1,
+            strengthUnit: "mg",
+            manufacturer: "Universal Pharmacy Platform",
+            baseUnit: "piece",
+            uomMatrix: [{ unit: "piece", conversionFactor: 1, enabled: true, price: 100 }],
+            stockQuantity: 10,
+            barcode: `ACCEPT-${suffix}`
+        };
+
+        let response;
+        try {
+            response = await fetch(`${baseUrl}/api/products`, {
+                method: "POST",
+                headers: {
+                    "content-type": "application/json",
+                    authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify(product)
+            });
+        } catch (error) {
+            throw new Error(`Acceptance product creation could not reach ${baseUrl}: ${error.message}`);
+        }
+
+        const body = await response.json().catch(() => ({}));
+        assert.equal(response.ok, true, `Acceptance product creation failed: ${JSON.stringify(body)}`);
+        assert.ok(body.product?._id, "Acceptance product creation did not return a product ID.");
+        assert.equal(body.product.tenantId, tenantId);
+        return body.product;
+    }
+
+    async function sync(token, deviceId, tenantId, events) {
         let response;
         try {
             response = await fetch(`${baseUrl}/api/offline/sync`, {
@@ -100,7 +136,7 @@ if (invalidConfiguration.length) {
                     "content-type": "application/json",
                     authorization: `Bearer ${token}`
                 },
-                body: JSON.stringify({ deviceId, events })
+                body: JSON.stringify({ tenantId, deviceId, events })
             });
         } catch (error) {
             throw new Error(`Offline sync could not reach ${baseUrl}: ${error.message}`);
@@ -111,14 +147,24 @@ if (invalidConfiguration.length) {
         return body;
     }
 
-    const event = (id, tenantId, deviceId, amount) => ({
+    const saleEvent = (id, tenantId, deviceId, productId, amount) => ({
         eventId: id,
         tenantId,
         deviceId,
         eventType: "SALE",
         occurredAt: new Date().toISOString(),
         sequence: 1,
-        payload: { acceptance: true, amount }
+        payload: {
+            acceptance: true,
+            productId: String(productId),
+            quantity: 1,
+            baseQuantity: 1,
+            uom: "piece",
+            conversionToBase: 1,
+            unitPrice: amount,
+            lineTotal: amount,
+            payments: [{ method: "CASH", amount }]
+        }
     });
 
     try {
@@ -134,60 +180,39 @@ if (invalidConfiguration.length) {
 
         assert.ok(claimsA, "Device A authentication token is not a JWT. Check that the acceptance URL points to this platform.");
         assert.ok(claimsB, "Device B authentication token is not a JWT. Check that the acceptance URL points to this platform.");
-        assert.equal(
-            claimsA.iss,
-            "universal-pharmacy-platform",
-            "Device A token issuer does not match this platform. Check OFFLINE_ACCEPTANCE_BASE_URL."
-        );
-        assert.equal(
-            claimsB.iss,
-            "universal-pharmacy-platform",
-            "Device B token issuer does not match this platform. Check OFFLINE_ACCEPTANCE_BASE_URL."
-        );
-        assert.equal(
-            claimsA.aud,
-            "universal-pharmacy-api",
-            "Device A token audience does not match this platform. Check OFFLINE_ACCEPTANCE_BASE_URL."
-        );
-        assert.equal(
-            claimsB.aud,
-            "universal-pharmacy-api",
-            "Device B token audience does not match this platform. Check OFFLINE_ACCEPTANCE_BASE_URL."
-        );
-        assert.ok(
-            claimsA.tenantId,
-            `Device A token has no tenant claim. The login endpoint at ${baseUrl} is not issuing the required tenant-scoped token.`
-        );
-        assert.ok(
-            claimsB.tenantId,
-            `Device B token has no tenant claim. The login endpoint at ${baseUrl} is not issuing the required tenant-scoped token.`
-        );
+        assert.equal(claimsA.iss, "universal-pharmacy-platform", "Device A token issuer does not match this platform. Check OFFLINE_ACCEPTANCE_BASE_URL.");
+        assert.equal(claimsB.iss, "universal-pharmacy-platform", "Device B token issuer does not match this platform. Check OFFLINE_ACCEPTANCE_BASE_URL.");
+        assert.equal(claimsA.aud, "universal-pharmacy-api", "Device A token audience does not match this platform. Check OFFLINE_ACCEPTANCE_BASE_URL.");
+        assert.equal(claimsB.aud, "universal-pharmacy-api", "Device B token audience does not match this platform. Check OFFLINE_ACCEPTANCE_BASE_URL.");
+        assert.ok(claimsA.tenantId, `Device A token has no tenant claim. The login endpoint at ${baseUrl} is not issuing the required tenant-scoped token.`);
+        assert.ok(claimsB.tenantId, `Device B token has no tenant claim. The login endpoint at ${baseUrl} is not issuing the required tenant-scoped token.`);
         assert.equal(claimsA.tenantId, claimsB.tenantId, "Acceptance identities must belong to the same tenant.");
-        if (configuredTenantId) {
-            assert.equal(claimsA.tenantId, configuredTenantId, "Acceptance tenant does not match the authenticated tenant.");
-        }
+        if (configuredTenantId) assert.equal(claimsA.tenantId, configuredTenantId, "Acceptance tenant does not match the authenticated tenant.");
 
         const tenantId = claimsA.tenantId;
-        const first = await sync(resolvedTokenA, deviceA, [event(eventId, tenantId, deviceA, 100)]);
+        const product = await createAcceptanceProduct(resolvedTokenA, tenantId);
+
+        const first = await sync(resolvedTokenA, deviceA, tenantId, [saleEvent(eventId, tenantId, deviceA, product._id, 100)]);
         assert.equal(first.received, 1);
         assert.equal(first.applied, 1);
 
-        const duplicate = await sync(resolvedTokenA, deviceA, [event(eventId, tenantId, deviceA, 100)]);
+        const duplicate = await sync(resolvedTokenA, deviceA, tenantId, [saleEvent(eventId, tenantId, deviceA, product._id, 100)]);
         assert.equal(duplicate.received, 1);
         assert.equal(duplicate.duplicates, 1);
         assert.equal(duplicate.conflicts, 0);
 
-        const conflict = await sync(resolvedTokenA, deviceA, [event(eventId, tenantId, deviceA, 999)]);
+        const conflict = await sync(resolvedTokenA, deviceA, tenantId, [saleEvent(eventId, tenantId, deviceA, product._id, 999)]);
         assert.equal(conflict.received, 1);
         assert.equal(conflict.conflicts, 1);
 
-        const second = await sync(resolvedTokenB, deviceB, [event(`acceptance-sale-b-${suffix}`, tenantId, deviceB, 200)]);
+        const second = await sync(resolvedTokenB, deviceB, tenantId, [saleEvent(`acceptance-sale-b-${suffix}`, tenantId, deviceB, product._id, 200)]);
         assert.equal(second.received, 1);
         assert.equal(second.applied, 1);
 
         console.log(JSON.stringify({
             success: true,
             tenantId,
+            acceptanceProductId: String(product._id),
             devices: [deviceA, deviceB],
             checks: [
                 "device A applied",
