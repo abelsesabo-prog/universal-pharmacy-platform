@@ -1,50 +1,63 @@
 # Master Plan Gap Register
 
-## Source reconciliation
+## Baseline
 
-The recovered Master Plan/SRS copies were reviewed as one requirement set because the canonical recovery document explicitly records that `Master plan app.doc`, `Master plan app(1).doc`, `Light speed services txt.txt`, `Light speed services txt(1).txt`, and `busines management architect.doc` contain the same core SRS and additional directives, with no conflicting requirement found. The canonical recovery text preserves the requirement to model the platform like a human body composed of systems, organs, tissues and cells.
+The implementation target is `Universal_Multi_Tenant_Business_Optimization_Engine_Complete_Master_SRS_v3.0`. The body/system/organ/tissue/cell model is treated as an architectural dependency rule, not as a requirement to create literal body-part modules. Therefore names such as mouth, nose or blood are not missing modules unless a future domain specification explicitly requires them.
 
 ## Implemented core
 
 - Multi-tenant product, batch, stock movement and sales foundations.
 - UOM matrix and base-unit invariants.
 - Canonical product identity with generic + brand + dosage form + strength.
-- Same generic/different brand as distinct commercial products.
 - Batch-level cost and inventory lot tracking.
 - Atomic invoice import with existing-product resolution and tenant-scoped identity protection.
-- Invoice row/file safety boundaries and automated tests.
-- Explainable product/invoice reasoning decision contract.
-- Offline event ledger and replay validation contracts with idempotency/lifecycle protection.
-- IndexedDB offline outbox with authenticated batch synchronization, bounded batches, tenant/device isolation, deterministic event fingerprints and explicit conflict acknowledgements.
-- Offline background-sync orchestration with service-worker wake-up signaling, feature detection, exponential retry/backoff, bounded attempts, and transient-vs-permanent HTTP failure classification.
+- Invoice safety boundaries and automated tests.
+- Explainable product/invoice reasoning contracts.
+- IndexedDB offline outbox, authenticated synchronization, bounded batches, tenant/device isolation, deterministic fingerprints, conflicts and retry policy.
+- Live multi-device offline reconciliation acceptance now passes on the target branch.
 - Master POS and Smart Invoice workspaces.
 - Audit and branch foundations.
 - Human-system executable anatomy contract.
-- TMDA quarantine/disposal organ with tenant-scoped batch linkage, explicit reasons, controlled disposition lifecycle and authorization evidence.
-- Clinical Safety Organ with canonical-ingredient allergy matching and authoritative interaction-rule evaluation without duplicating clinical truth.
+- TMDA quarantine/disposal lifecycle with controlled disposition evidence.
+- Clinical safety contract for canonical-ingredient allergy and authoritative interaction evidence.
+- Customer/supplier and complaint foundations.
+- Financial entries, payment reconciliation and immutable journal posting foundation.
+- Tenant provisioning/lifecycle, tenant-scoped export, notifications and migration/recovery planning foundations.
+- Pharmacy completion workflows for insurance eligibility, preauthorization and claim batches.
+- Expiry watch plus controlled inter-branch relocation planning/execution with transfer movement evidence.
+- Provider-neutral EFD document queue with idempotency protection; vendor/network submission remains adapter work.
+- Time-bound, scope-bound delegated-action records with optional value caps and revocation.
 
-## Highest-priority gaps from the Master Plan
+## Remaining gaps
 
-1. **Offline synchronization:** client background orchestration is implemented; remaining work is live multi-device reconciliation verification and production browser/service-worker acceptance testing.
-2. **Regulated pharmacy organs:** interaction/allergy safety contract is now implemented; NHIF workflow, expiry relocation and EFD integration remain implementation gaps.
-3. **Universal business organs:** bookkeeping/expense reconciliation and customer complaint workflows need complete cross-business implementations and audit integration.
-4. **Expansion organs:** EHR, laboratory, inpatient, enterprise wholesale, multi-warehouse logistics and migration remain future domain implementations.
-5. **UI automation:** guided category-aware item entry, inline interaction and continuous focus need end-to-end browser verification and remaining adapters.
-6. **Production integration:** cross-domain audit/event emission and database transaction boundaries need live integration verification, including quarantine stock movements, finalized dispositions and clinical safety decisions.
+### A. Production-grade integrations and evidence
+- Real NHIF/insurer eligibility, authorization and claim submission adapters must be connected to the selected provider and validated against current official requirements.
+- Real EFD device/network adapter must be connected and tested against the current Tanzanian fiscal-device requirements.
+- SMS/email delivery adapters and automated shift-report dispatch need provider configuration and live acceptance evidence.
+- Browser-level service-worker/offline acceptance still needs verification on the target devices and network failure modes.
 
-## Human architecture rule
+### B. Financial and control hardening
+- Full accounting policy implementation: chart of accounts, tax rules, exact money representation policy, exchange-rate provenance, period controls and financial statements generated from journal truth.
+- Atomic cross-domain posting for sales/refunds/expenses/claims/quarantine write-offs where database transaction support is required.
+- Emergency delegation must be enforced by every sensitive action, not merely stored as a delegation record.
+- Backup scheduling, retention, restore drills, RPO/RTO and portable export need production operational evidence.
 
-The analogy is an architectural dependency rule, not a naming exercise:
+### C. Pharmacy intelligence and regulatory depth
+- A production knowledge-source integration for drug-drug interactions/allergies is still required; the current implementation deliberately refuses to invent clinical truth.
+- Predictive expiry/relocation recommendations require historical demand data, a transparent scoring model and human confirmation.
+- Statutory/regulatory document generation requires authoritative templates and current validation.
+- OCR/AI assistance for image-only invoices remains optional enrichment and must never bypass server validation.
 
-`body -> system -> organ -> tissue -> cell`
+### D. Universal expansion roadmap
+- Hospital: patient/EHR, triage/vitals, consultation, prescribing, lab/radiology dispatch, wards/beds, discharge and clinical insurance workflows.
+- Laboratory: barcode specimen intake, chain of custody, test catalog/panels, analyzer adapters, result validation and authorized delivery.
+- Retail/wholesale: parent/variant SKU, tiered pricing, credit/aging/repayment, multi-warehouse logistics, pick/pack and consignment.
+- Enterprise analytics and forecasting remain future-phase capabilities.
 
-A lower-level component owns its local state and exposes contracts upward. Higher-level organs coordinate; they do not create competing copies of product, batch, sale or financial truth. Cross-domain facts are linked by stable IDs/events and remain auditable.
+## Definition-of-done rule
 
-## Next implementation order
+A requirement is not marked complete merely because a route or UI exists. Completion requires the canonical contract, correct architectural layer, normal/invalid/boundary tests, tenant isolation, auditability, failure/recovery behavior, target-device UX evidence and—where an external dependency exists—live adapter evidence. This follows the v3.0 SRS rule that repository implementation, automated verification and runtime evidence must agree.
 
-1. Complete live multi-device reconciliation verification and browser/service-worker acceptance tests.
-2. Implement NHIF, expiry relocation and EFD adapters around canonical domain truth.
-3. Implement financial/complaint organs with cross-domain audit events.
-4. Add production integration tests for regulated stock, audit and transactional boundaries.
-5. Implement hospital, laboratory, enterprise and migration organs.
-6. Perform browser-level acceptance verification of the complete Master Plan workflow.
+## Current assessment
+
+The branch has moved beyond the earlier ~95% pharmacy-core estimate by closing several previously explicit gaps. It should not be called 100% of the complete v3.0 SRS yet because the SRS deliberately contains later hospital, laboratory, enterprise, regulatory-provider and production-operations phases. The remaining work is now concentrated in integration evidence, financial/control hardening, regulated external adapters and later expansion organs rather than the core POS/inventory/offline architecture.
