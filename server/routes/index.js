@@ -10,6 +10,8 @@ import branchRoutes from "./branchRoutes.js";
 import invoiceImportRoutes from "./invoiceImportRoutes.js";
 import offlineSyncRoutes from "./offlineSyncRoutes.js";
 import tmdaQuarantineRoutes from "./tmdaQuarantineRoutes.js";
+import financialRoutes from "./financialRoutes.js";
+import complaintRoutes from "./complaintRoutes.js";
 
 const router = express.Router();
 router.get("/health", healthCheck);
@@ -23,4 +25,6 @@ router.use(branchRoutes);
 router.use("/invoices", invoiceImportRoutes);
 router.use("/offline", offlineSyncRoutes);
 router.use("/tmda", tmdaQuarantineRoutes);
+router.use(financialRoutes);
+router.use(complaintRoutes);
 export default router;
