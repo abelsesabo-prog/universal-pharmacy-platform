@@ -13,6 +13,7 @@ import tmdaQuarantineRoutes from "./tmdaQuarantineRoutes.js";
 import financialRoutes from "./financialRoutes.js";
 import complaintRoutes from "./complaintRoutes.js";
 import universalCoreRoutes from "./universalCoreRoutes.js";
+import pharmacyCompletionRoutes from "./pharmacyCompletionRoutes.js";
 
 const router = express.Router();
 router.get("/health", healthCheck);
@@ -29,4 +30,5 @@ router.use("/tmda", tmdaQuarantineRoutes);
 router.use(financialRoutes);
 router.use(complaintRoutes);
 router.use(universalCoreRoutes);
+router.use(pharmacyCompletionRoutes);
 export default router;
