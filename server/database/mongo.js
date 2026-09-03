@@ -17,6 +17,7 @@ async function ensureSecurityIndexes(db) {
     await db.collection(COLLECTIONS.BATCHES).createIndex({ tenantId: 1, productId: 1, batchNumber: 1 }, { unique: true, name: "uq_batch_tenant_product_number" });
     await db.collection(COLLECTIONS.STOCK_MOVEMENTS).createIndex({ tenantId: 1, productId: 1, createdAt: -1 }, { name: "idx_movement_tenant_product_date" });
     await db.collection(COLLECTIONS.SALES).createIndex({ tenantId: 1, branchId: 1, createdAt: -1 }, { name: "idx_sale_tenant_branch_date" });
+    await db.collection(COLLECTIONS.SALES).createIndex({ tenantId: 1, idempotencyKey: 1 }, { unique: true, partialFilterExpression: { idempotencyKey: { $type: "string" } }, name: "uq_sale_tenant_idempotency" });
     await db.collection(COLLECTIONS.SALE_ITEMS).createIndex({ tenantId: 1, saleId: 1 }, { name: "idx_sale_item_tenant_sale" });
     await db.collection(COLLECTIONS.AUDIT_LOGS).createIndex({ tenantId: 1, createdAt: -1 }, { name: "idx_audit_tenant_date" });
     await db.collection(COLLECTIONS.OFFLINE_EVENTS).createIndex({ tenantId: 1, eventId: 1 }, { unique: true, name: "uq_offline_event_tenant_event" });
