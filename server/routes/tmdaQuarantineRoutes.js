@@ -6,7 +6,8 @@ import {
 } from "../controllers/tmdaQuarantineController.js";
 
 const router = express.Router();
-router.post("/quarantine", requireAuth, requireRole("admin", "manager"), createQuarantineController);
-router.post("/quarantine/:id/disposition", requireAuth, requireRole("admin", "manager"), applyQuarantineDispositionController);
+router.use(requireAuth);
+router.post("/quarantine", requireRole("admin", "manager"), createQuarantineController);
+router.post("/quarantine/:id/disposition", requireRole("admin", "manager"), applyQuarantineDispositionController);
 
 export default router;
