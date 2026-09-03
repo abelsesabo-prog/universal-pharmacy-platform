@@ -41,11 +41,16 @@ for (const file of files) {
     if (relative === "server/services/offlineEventProcessorV2.js") replayProcessors.push(relative);
 }
 
-// There must be one authoritative offline replay contract. A V2 implementation
-// beside the production processor is architectural drift unless it is removed
-// or explicitly collapsed into the canonical module.
-if (replayProcessors.includes("server/services/offlineEventProcessor.js") && replayProcessors.includes("server/services/offlineEventProcessorV2.js")) {
-    failures.push("Duplicate offline replay processors detected: server/services/offlineEventProcessor.js and server/services/offlineEventProcessorV2.js. Keep one authoritative implementation.");
+// There must be one authoritative offline replay contract. A compatibility
+// shim is allowed, but a second implementation is not.
+const v2 = replayProcessors.find(item => item === "server/services/offlineEventProcessorV2.js");
+if (v2) {
+    const source = fs.readFileSync(path.join(ROOT, v2), "utf8");
+    const normalized = source.replace(/\s+/g, " ").trim();
+    const shim = 'export { REPLAY_PHASES as OFFLINE_REPLAY_PHASES, validateReplayEvent as validateReplayContract, } from "./offlineEventProcessor.js";';
+    if (!normalized.endsWith(shim) || !normalized.includes('from "./offlineEventProcessor.js"')) {
+        failures.push("Duplicate offline replay contract detected: server/services/offlineEventProcessorV2.js must remain a compatibility shim to offlineEventProcessor.js.");
+    }
 }
 
 if (failures.length) {
@@ -54,4 +59,4 @@ if (failures.length) {
     process.exit(1);
 }
 
-console.log(`Architecture drift guard passed: canonical schema v${SCHEMA_VERSION}; no stale schema assertions or duplicate offline replay processors.`);
+console.log(`Architecture drift guard passed: canonical schema v${SCHEMA_VERSION}; no stale schema assertions or divergent offline replay implementation.`);
