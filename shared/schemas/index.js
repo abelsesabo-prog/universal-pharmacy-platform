@@ -3,7 +3,7 @@
 // Shared Data Schemas
 // ==========================================
 
-export const SCHEMA_VERSION = 12;
+export const SCHEMA_VERSION = 13;
 
 export const COLLECTIONS = Object.freeze({
     TENANTS: "tenants", USERS: "users", BRANCHES: "branches", PRODUCTS: "products", BATCHES: "batches", SALES: "sales", SALE_ITEMS: "sale_items", PURCHASES: "purchases", PURCHASE_ITEMS: "purchase_items", STOCK_MOVEMENTS: "stock_movements", CUSTOMERS: "customers", SUPPLIERS: "suppliers", EXPENSES: "expenses", FINANCIAL_ENTRIES: "financial_entries", LEDGER_JOURNALS: "ledger_journals", CHART_OF_ACCOUNTS: "chart_of_accounts", ACCOUNTING_PERIODS: "accounting_periods", COMPLAINTS: "complaints", AUDIT_LOGS: "audit_logs", OFFLINE_EVENTS: "offline_events", TMDA_QUARANTINES: "tmda_quarantines", NOTIFICATIONS: "notifications", INTEGRATIONS: "integrations", MIGRATION_RUNS: "migration_runs", RECOVERY_DRILLS: "recovery_drills", DEVICES: "devices", INSURANCE_ELIGIBILITY: "insurance_eligibility", INSURANCE_PREAUTHORIZATIONS: "insurance_preauthorizations", INSURANCE_CLAIM_BATCHES: "insurance_claim_batches", EXPIRY_RELOCATION_PLANS: "expiry_relocation_plans", DELEGATIONS: "delegations", EFD_DOCUMENTS: "efd_documents"
@@ -15,6 +15,8 @@ export const STOCK_MOVEMENT_TYPES = Object.freeze(["PURCHASE", "SALE", "RETURN",
 export const STOCK_MOVEMENT_SCHEMA = Object.freeze({ required: ["tenantId", "productId", "type", "quantity", "direction"], optional: ["batchId", "branchId", "reference", "notes", "unitCost", "createdBy"] });
 export const SALE_SCHEMA = Object.freeze({ required: ["tenantId", "branchId", "subtotal", "total", "payments", "status", "createdAt"], optional: ["customerId", "cashierId", "discount"] });
 export const SALE_ITEM_SCHEMA = Object.freeze({ required: ["tenantId", "saleId", "productId", "quantity", "unitPrice", "lineTotal", "uom", "conversionToBase", "baseQuantity", "createdAt"], optional: ["productName"] });
+export const PURCHASE_SCHEMA = Object.freeze({ required: ["tenantId", "branchId", "invoiceNumber", "paymentMethod", "total", "status", "occurredAt", "idempotencyKey", "createdAt"], optional: ["supplierId", "createdBy", "note", "itemCount", "updatedAt"] });
+export const PURCHASE_ITEM_SCHEMA = Object.freeze({ required: ["tenantId", "productId", "batchId", "quantity", "baseQuantity", "uom", "conversionToBase", "unitCost", "lineTotal", "batchNumber", "expiryDate", "createdAt"], optional: [] });
 export const FINANCIAL_ENTRY_SCHEMA = Object.freeze({ required: ["tenantId", "account", "direction", "amount", "paymentMethod", "occurredAt"], optional: ["branchId", "referenceType", "referenceId", "description", "createdAt"] });
 export const LEDGER_JOURNAL_SCHEMA = Object.freeze({ required: ["tenantId", "currency", "lines", "immutable", "idempotencyKey", "createdAt"], optional: ["branchId", "referenceType", "referenceId", "description"] });
 export const CHART_OF_ACCOUNTS_SCHEMA = Object.freeze({ required: ["tenantId", "code", "name", "type", "active", "createdAt"], optional: ["updatedAt"] });
