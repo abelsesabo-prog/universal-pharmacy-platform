@@ -7,7 +7,7 @@ test("all planned core collections have canonical names", () => {
 });
 
 test("schema version is current and sale header matches sales service", () => {
-    assert.equal(SCHEMA_VERSION, 7);
+    assert.equal(SCHEMA_VERSION, 11);
     assert.deepEqual(SALE_SCHEMA.required, ["tenantId", "branchId", "subtotal", "total", "payments", "status", "createdAt"]);
 });
 
