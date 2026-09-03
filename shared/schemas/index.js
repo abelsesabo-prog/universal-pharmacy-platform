@@ -3,7 +3,7 @@
 // Shared Data Schemas
 // ==========================================
 
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 export const COLLECTIONS = Object.freeze({
     TENANTS: "tenants", USERS: "users", BRANCHES: "branches", PRODUCTS: "products", BATCHES: "batches", SALES: "sales", SALE_ITEMS: "sale_items", PURCHASES: "purchases", PURCHASE_ITEMS: "purchase_items", STOCK_MOVEMENTS: "stock_movements", CUSTOMERS: "customers", SUPPLIERS: "suppliers", EXPENSES: "expenses", FINANCIAL_ENTRIES: "financial_entries", LEDGER_JOURNALS: "ledger_journals", COMPLAINTS: "complaints", AUDIT_LOGS: "audit_logs", OFFLINE_EVENTS: "offline_events", TMDA_QUARANTINES: "tmda_quarantines", NOTIFICATIONS: "notifications", INTEGRATIONS: "integrations", MIGRATION_RUNS: "migration_runs", RECOVERY_DRILLS: "recovery_drills", DEVICES: "devices", INSURANCE_ELIGIBILITY: "insurance_eligibility", INSURANCE_PREAUTHORIZATIONS: "insurance_preauthorizations", INSURANCE_CLAIM_BATCHES: "insurance_claim_batches", EXPIRY_RELOCATION_PLANS: "expiry_relocation_plans", DELEGATIONS: "delegations", EFD_DOCUMENTS: "efd_documents"
@@ -16,7 +16,7 @@ export const STOCK_MOVEMENT_SCHEMA = Object.freeze({ required: ["tenantId", "pro
 export const SALE_SCHEMA = Object.freeze({ required: ["tenantId", "branchId", "subtotal", "total", "payments", "status", "createdAt"], optional: ["customerId", "cashierId", "discount"] });
 export const SALE_ITEM_SCHEMA = Object.freeze({ required: ["tenantId", "saleId", "productId", "quantity", "unitPrice", "lineTotal", "uom", "conversionToBase", "baseQuantity", "createdAt"], optional: ["productName"] });
 export const FINANCIAL_ENTRY_SCHEMA = Object.freeze({ required: ["tenantId", "account", "direction", "amount", "paymentMethod", "occurredAt"], optional: ["branchId", "referenceType", "referenceId", "description", "createdAt"] });
-export const LEDGER_JOURNAL_SCHEMA = Object.freeze({ required: ["tenantId", "currency", "lines", "immutable", "createdAt"], optional: ["branchId", "referenceType", "referenceId", "description"] });
+export const LEDGER_JOURNAL_SCHEMA = Object.freeze({ required: ["tenantId", "currency", "lines", "immutable", "idempotencyKey", "createdAt"], optional: ["branchId", "referenceType", "referenceId", "description"] });
 export const COMPLAINT_SCHEMA = Object.freeze({ required: ["tenantId", "subject", "description", "priority", "status", "createdAt"], optional: ["branchId", "customerId", "category", "assignedTo", "resolution", "updatedAt"] });
 export const NOTIFICATION_SCHEMA = Object.freeze({ required: ["tenantId", "channel", "recipient", "message", "priority", "status", "attempts", "createdAt"], optional: ["lastError", "updatedAt"] });
 export const INTEGRATION_SCHEMA = Object.freeze({ required: ["tenantId", "type", "provider", "state", "idempotencyNamespace"], optional: ["externalId", "timeoutMs", "retryMax"] });
