@@ -5,7 +5,7 @@ import { createDelegationController, revokeDelegationController, authorizeDelega
 
 const router = express.Router();
 router.use(requireAuth, requireTenant);
-router.post("/", requireRole("manager", "system_admin"), createDelegationController);
+router.post("/", requireRole("admin", "manager", "system_admin"), createDelegationController);
 router.post("/authorize", authorizeDelegatedActionController);
-router.post("/:id/revoke", requireRole("manager", "system_admin"), revokeDelegationController);
+router.post("/:id/revoke", requireRole("admin", "manager", "system_admin"), revokeDelegationController);
 export default router;
