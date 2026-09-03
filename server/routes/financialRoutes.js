@@ -6,14 +6,16 @@ import { createFinancialEntryController, listFinancialEntriesController, reconci
 import { postJournalController, listJournalsController, trialBalanceController } from "../controllers/ledgerController.js";
 
 const router = express.Router();
-router.use(requireAuth, requireTenant);
-router.get("/finance/entries", listFinancialEntriesController);
-router.post("/finance/entries", requireRoleOrDelegation("FINANCIAL_POSTING", ["admin", "manager"]), createFinancialEntryController);
-router.get("/finance/reconciliation", requireRole("admin", "manager"), reconcilePaymentMethodsController);
+
+const requireFinanceContext = [requireAuth, requireTenant];
+
+router.get("/finance/entries", ...requireFinanceContext, listFinancialEntriesController);
+router.post("/finance/entries", ...requireFinanceContext, requireRoleOrDelegation("FINANCIAL_POSTING", ["admin", "manager"]), createFinancialEntryController);
+router.get("/finance/reconciliation", ...requireFinanceContext, requireRole("admin", "manager"), reconcilePaymentMethodsController);
 
 // Canonical double-entry ledger. Posting remains manager/admin controlled or explicitly delegated.
-router.post("/finance/journals", requireRoleOrDelegation("FINANCIAL_POSTING", ["admin", "manager"]), postJournalController);
-router.get("/finance/journals", requireRole("admin", "manager"), listJournalsController);
-router.get("/finance/trial-balance", requireRole("admin", "manager"), trialBalanceController);
+router.post("/finance/journals", ...requireFinanceContext, requireRoleOrDelegation("FINANCIAL_POSTING", ["admin", "manager"]), postJournalController);
+router.get("/finance/journals", ...requireFinanceContext, requireRole("admin", "manager"), listJournalsController);
+router.get("/finance/trial-balance", ...requireFinanceContext, requireRole("admin", "manager"), trialBalanceController);
 
 export default router;
