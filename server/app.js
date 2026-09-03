@@ -49,5 +49,7 @@ async function startServer() {
     }
 }
 
-if (process.env.NODE_ENV !== "test") startServer();
+const isMainModule = process.argv[1] && path.resolve(process.argv[1]) === __filename;
+if (isMainModule && process.env.NODE_ENV !== "test") startServer();
+
 export default app;
