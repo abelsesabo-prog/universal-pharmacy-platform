@@ -16,6 +16,7 @@ import universalCoreRoutes from "./universalCoreRoutes.js";
 import pharmacyCompletionRoutes from "./pharmacyCompletionRoutes.js";
 import delegationRoutes from "./delegationRoutes.js";
 import accountingCompletionRoutes from "./accountingCompletionRoutes.js";
+import purchaseRoutes from "./purchaseRoutes.js";
 
 const router = express.Router();
 router.get("/health", healthCheck);
@@ -35,4 +36,5 @@ router.use(universalCoreRoutes);
 router.use(pharmacyCompletionRoutes);
 router.use("/delegations", delegationRoutes);
 router.use(accountingCompletionRoutes);
+router.use(purchaseRoutes);
 export default router;
