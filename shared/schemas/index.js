@@ -3,10 +3,10 @@
 // Shared Data Schemas
 // ==========================================
 
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 export const COLLECTIONS = Object.freeze({
-    TENANTS: "tenants", USERS: "users", BRANCHES: "branches", PRODUCTS: "products", BATCHES: "batches", SALES: "sales", SALE_ITEMS: "sale_items", PURCHASES: "purchases", PURCHASE_ITEMS: "purchase_items", STOCK_MOVEMENTS: "stock_movements", CUSTOMERS: "customers", SUPPLIERS: "suppliers", EXPENSES: "expenses", FINANCIAL_ENTRIES: "financial_entries", COMPLAINTS: "complaints", AUDIT_LOGS: "audit_logs", OFFLINE_EVENTS: "offline_events", TMDA_QUARANTINES: "tmda_quarantines"
+    TENANTS: "tenants", USERS: "users", BRANCHES: "branches", PRODUCTS: "products", BATCHES: "batches", SALES: "sales", SALE_ITEMS: "sale_items", PURCHASES: "purchases", PURCHASE_ITEMS: "purchase_items", STOCK_MOVEMENTS: "stock_movements", CUSTOMERS: "customers", SUPPLIERS: "suppliers", EXPENSES: "expenses", FINANCIAL_ENTRIES: "financial_entries", LEDGER_JOURNALS: "ledger_journals", COMPLAINTS: "complaints", AUDIT_LOGS: "audit_logs", OFFLINE_EVENTS: "offline_events", TMDA_QUARANTINES: "tmda_quarantines", NOTIFICATIONS: "notifications", INTEGRATIONS: "integrations", MIGRATION_RUNS: "migration_runs", RECOVERY_DRILLS: "recovery_drills", DEVICES: "devices"
 });
 
 export const PRODUCT_SCHEMA = Object.freeze({ required: ["tenantId", "brandName", "genericName", "dosageForm", "category"], optional: ["strength", "strengthUnit", "manufacturer", "registrationAgency", "registrationNumber", "baseUnit", "uomMatrix", "barcode", "stockQuantity", "catalogInstalled", "catalogSource", "catalogFamilyId", "catalogRxcui"] });
@@ -16,7 +16,12 @@ export const STOCK_MOVEMENT_SCHEMA = Object.freeze({ required: ["tenantId", "pro
 export const SALE_SCHEMA = Object.freeze({ required: ["tenantId", "branchId", "subtotal", "total", "payments", "status", "createdAt"], optional: ["customerId", "cashierId", "discount"] });
 export const SALE_ITEM_SCHEMA = Object.freeze({ required: ["tenantId", "saleId", "productId", "quantity", "unitPrice", "lineTotal", "uom", "conversionToBase", "baseQuantity", "createdAt"], optional: ["productName"] });
 export const FINANCIAL_ENTRY_SCHEMA = Object.freeze({ required: ["tenantId", "account", "direction", "amount", "paymentMethod", "occurredAt"], optional: ["branchId", "referenceType", "referenceId", "description", "createdAt"] });
+export const LEDGER_JOURNAL_SCHEMA = Object.freeze({ required: ["tenantId", "currency", "lines", "immutable", "createdAt"], optional: ["branchId", "referenceType", "referenceId", "description"] });
 export const COMPLAINT_SCHEMA = Object.freeze({ required: ["tenantId", "subject", "description", "priority", "status", "createdAt"], optional: ["branchId", "customerId", "category", "assignedTo", "resolution", "updatedAt"] });
+export const NOTIFICATION_SCHEMA = Object.freeze({ required: ["tenantId", "channel", "recipient", "message", "priority", "status", "attempts", "createdAt"], optional: ["lastError", "updatedAt"] });
+export const INTEGRATION_SCHEMA = Object.freeze({ required: ["tenantId", "type", "provider", "state", "idempotencyNamespace"], optional: ["externalId", "timeoutMs", "retryMax"] });
+export const DEVICE_SCHEMA = Object.freeze({ required: ["tenantId", "deviceId", "status", "registeredAt"], optional: ["branchId", "userId", "revokedAt", "lastSeenAt"] });
+export const MIGRATION_RUN_SCHEMA = Object.freeze({ required: ["tenantId", "status", "createdAt"], optional: ["source", "dryRun", "rows", "rollbackRef", "completedAt"] });
 
 export const TMDA_QUARANTINE_SCHEMA = Object.freeze({ required: ["tenantId", "productId", "batchId", "quantity", "reason", "status", "quarantineDate"], optional: ["disposition", "dispositionDate", "authorisedBy", "notes", "createdAt", "updatedAt", "branchId", "movementId", "dispositionMovementId", "createdBy"] });
 export const TMDA_QUARANTINE_STATUSES = Object.freeze(["QUARANTINED", "RELEASED", "DISPOSED"]);
