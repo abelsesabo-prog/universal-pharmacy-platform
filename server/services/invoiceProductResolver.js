@@ -22,8 +22,10 @@ export function canonicalProductIdentity(product) {
     return [
         product.brandName,
         product.genericName,
+        product.manufacturer || "Unspecified",
         product.dosageForm || "Unspecified",
-        canonicalStrength(product.strength)
+        canonicalStrength(product.strength),
+        product.packSize || "Unspecified"
     ].map(canonicalProductText).join("|");
 }
 
@@ -31,8 +33,10 @@ export function invoiceProductIdentity(row) {
     return canonicalProductIdentity({
         brandName: row.brandName,
         genericName: row.genericName,
+        manufacturer: row.manufacturer,
         dosageForm: row.dosageForm,
-        strength: row.strength
+        strength: row.strength,
+        packSize: row.packSize
     });
 }
 
@@ -60,8 +64,10 @@ export async function resolveExistingInvoiceProduct(row, tenantId, session = und
 
     const brand = canonicalProductText(row.brandName);
     const generic = canonicalProductText(row.genericName);
+    const manufacturer = canonicalProductText(row.manufacturer || "Unspecified");
     const dosage = canonicalProductText(row.dosageForm || "Unspecified");
     const strength = canonicalStrength(row.strength);
+    const packSize = canonicalProductText(row.packSize || "Unspecified");
 
     if (!brand && !generic) return null;
 
@@ -74,6 +80,6 @@ export async function resolveExistingInvoiceProduct(row, tenantId, session = und
         ]
     }, options).limit(50).toArray();
 
-    const target = [brand, generic, dosage, strength].join("|");
+    const target = [brand, generic, manufacturer, dosage, strength, packSize].join("|");
     return candidates.find(product => canonicalProductIdentity(product) === target) || null;
 }
