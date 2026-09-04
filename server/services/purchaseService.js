@@ -36,7 +36,9 @@ function normalizeItem(item, index) {
     toMinorUnits(unitCost);
     const expiryDate = date(item?.expiryDate, `Expiry date at item ${index + 1}`);
     if (expiryDate < new Date(new Date().setHours(0, 0, 0, 0))) fail(`Item ${index + 1} is already expired.`);
-    return { productId, batchNumber, quantity, conversionToBase, unitCost, expiryDate, uom: text(item?.uom) || "piece", supplierId: text(item?.supplierId) || null };
+    const manufacturedDate = item?.manufacturedDate ? date(item.manufacturedDate, `Manufactured date at item ${index + 1}`) : null;
+    if (manufacturedDate && manufacturedDate > expiryDate) fail(`Item ${index + 1} manufactured date cannot be after expiry date.`);
+    return { productId, batchNumber, quantity, conversionToBase, unitCost, manufacturedDate, expiryDate, uom: text(item?.uom) || "piece", supplierId: text(item?.supplierId) || null };
 }
 
 export async function receivePurchase({ tenantId, branchId = null, supplierId = null, invoiceNumber, paymentMethod = "CREDIT", occurredAt = new Date(), idempotencyKey, createdBy = null, items = [], note = null } = {}) {
@@ -81,11 +83,11 @@ export async function receivePurchase({ tenantId, branchId = null, supplierId = 
                 const lineMinor = toMinorUnits(item.unitCost) * BigInt(item.quantity);
                 totalMinor += lineMinor;
                 const baseQuantity = item.quantity * item.conversionToBase;
-                const batch = { tenantId: tenant, productId: item.productId, batchNumber: item.batchNumber, quantity: baseQuantity, expiryDate: item.expiryDate, branchId: activeBranch, costPrice: Number(item.unitCost) / item.conversionToBase, sellingPrice: null, supplierId: item.supplierId || text(supplierId) || null, createdBy, createdAt: now, updatedAt: now };
+                const batch = { tenantId: tenant, productId: item.productId, batchNumber: item.batchNumber, quantity: baseQuantity, manufacturedDate: item.manufacturedDate, expiryDate: item.expiryDate, branchId: activeBranch, costPrice: Number(item.unitCost) / item.conversionToBase, sellingPrice: null, supplierId: item.supplierId || text(supplierId) || null, createdBy, createdAt: now, updatedAt: now };
                 const batchResult = await batches.insertOne(batch, { session });
                 await products.updateOne({ _id: item.productId, tenantId: tenant }, { $inc: { stockQuantity: baseQuantity }, $set: { updatedAt: now } }, { session });
                 await movements.insertOne({ tenantId: tenant, productId: item.productId, batchId: batchResult.insertedId, type: "PURCHASE", quantity: baseQuantity, direction: "IN", branchId: activeBranch, reference: `PURCHASE:${invoice}`, notes: note ? text(note) : "Supplier purchase received", unitCost: Number(item.unitCost) / item.conversionToBase, createdBy, createdAt: now }, { session });
-                const purchaseItem = { tenantId: tenant, productId: item.productId, batchId: batchResult.insertedId, quantity: item.quantity, baseQuantity, uom: item.uom, conversionToBase: item.conversionToBase, unitCost: Number(item.unitCost), lineTotal: fromMinorUnits(lineMinor), batchNumber: item.batchNumber, expiryDate: item.expiryDate, createdAt: now };
+                const purchaseItem = { tenantId: tenant, productId: item.productId, batchId: batchResult.insertedId, quantity: item.quantity, baseQuantity, uom: item.uom, conversionToBase: item.conversionToBase, unitCost: Number(item.unitCost), lineTotal: fromMinorUnits(lineMinor), batchNumber: item.batchNumber, manufacturedDate: item.manufacturedDate, expiryDate: item.expiryDate, createdAt: now };
                 const itemResult = await purchaseItems.insertOne(purchaseItem, { session });
                 createdItems.push({ ...purchaseItem, _id: itemResult.insertedId });
             }
