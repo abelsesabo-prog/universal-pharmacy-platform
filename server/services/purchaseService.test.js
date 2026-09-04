@@ -31,6 +31,14 @@ test("purchase receipt rejects expired inventory before database mutation", asyn
     await assert.rejects(() => receivePurchase({ ...valid, items: [{ ...valid.items[0], expiryDate: "2000-01-01" }] }), /already expired/i);
 });
 
+test("purchase receipt rejects manufactured date after expiry date before database mutation", async () => {
+    await assert.rejects(() => receivePurchase({ ...valid, items: [{ ...valid.items[0], manufacturedDate: "2099-02-01" }] }), /manufactured date cannot be after expiry date/i);
+});
+
+test("purchase receipt accepts a valid manufactured date before expiry", async () => {
+    await assert.rejects(() => receivePurchase({ ...valid, items: [{ ...valid.items[0], manufacturedDate: "2098-01-01" }] }), /Product not found in this tenant/i);
+});
+
 test("purchase receipt rejects unsupported payment method before database mutation", async () => {
     await assert.rejects(() => receivePurchase({ ...valid, paymentMethod: "CRYPTO" }), /unsupported purchase payment method/i);
 });
