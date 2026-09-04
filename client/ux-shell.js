@@ -68,9 +68,23 @@ function wireFastSearch() {
     });
 }
 
+export async function registerBrowserOfflineSupport({ navigatorRef = globalThis.navigator } = {}) {
+    const serviceWorker = navigatorRef?.serviceWorker;
+    if (!serviceWorker?.register) return { supported: false, registered: false };
+    try {
+        const registration = await serviceWorker.register("/service-worker.js", { scope: "/" });
+        await registration?.update?.();
+        return { supported: true, registered: true, registration };
+    } catch (error) {
+        console.warn("Browser offline support registration failed:", error.message);
+        return { supported: true, registered: false, error };
+    }
+}
+
 function boot() {
     ensureShell();
     wireFastSearch();
+    void registerBrowserOfflineSupport();
 }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true });
