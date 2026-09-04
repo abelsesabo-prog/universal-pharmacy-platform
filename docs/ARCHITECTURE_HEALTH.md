@@ -1,6 +1,6 @@
 # Architecture Health Gate
 
-Last engineering review: 2026-09-03.
+Last engineering review: 2026-09-04.
 
 ## Repaired and verified in the repository
 
@@ -25,11 +25,16 @@ Last engineering review: 2026-09-03.
 - Insurance workflow foundations, expiry watch and inter-branch relocation controls
 - Express app factory for deterministic Node tests
 - Static serving of the canonical `client/` browser shell
+- Canonical four-field product identity (brand, generic, dosage form, strength) with persisted `identityKey` contract
+- UOM matrix/base-unit invariants and server-authoritative UOM price/conversion enforcement
+- UOM-aware product setup and POS workflows with batch-level opening-stock creation
 - Node test suite and GitHub Actions CI
 
 ## Documentation consistency repairs
 
 Older architecture notes described `client/index.html` as empty and described the project as still being at the early Product/Batch foundation stage. Those statements no longer match the integration branch and have been removed from the active release guidance.
+
+The product identity contract was also reconciled during the 2026-09-04 audit: manufacturer and pack size remain product attributes, while the canonical commercial identity remains the four dimensions defined by the product identity specification. Resolver ambiguity in legacy duplicate data is fail-closed rather than silently selecting a product.
 
 ## Remaining production evidence gates
 
