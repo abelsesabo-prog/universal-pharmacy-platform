@@ -22,10 +22,8 @@ export function canonicalProductIdentity(product) {
     return [
         product.brandName,
         product.genericName,
-        product.manufacturer || "Unspecified",
         product.dosageForm || "Unspecified",
-        canonicalStrength(product.strength),
-        product.packSize || "Unspecified"
+        canonicalStrength(product.strength)
     ].map(canonicalProductText).join("|");
 }
 
@@ -33,10 +31,8 @@ export function invoiceProductIdentity(row) {
     return canonicalProductIdentity({
         brandName: row.brandName,
         genericName: row.genericName,
-        manufacturer: row.manufacturer,
         dosageForm: row.dosageForm,
-        strength: row.strength,
-        packSize: row.packSize
+        strength: row.strength
     });
 }
 
@@ -64,10 +60,8 @@ export async function resolveExistingInvoiceProduct(row, tenantId, session = und
 
     const brand = canonicalProductText(row.brandName);
     const generic = canonicalProductText(row.genericName);
-    const manufacturer = canonicalProductText(row.manufacturer || "Unspecified");
     const dosage = canonicalProductText(row.dosageForm || "Unspecified");
     const strength = canonicalStrength(row.strength);
-    const packSize = canonicalProductText(row.packSize || "Unspecified");
 
     if (!brand && !generic) return null;
 
@@ -80,6 +74,10 @@ export async function resolveExistingInvoiceProduct(row, tenantId, session = und
         ]
     }, options).limit(50).toArray();
 
-    const target = [brand, generic, manufacturer, dosage, strength, packSize].join("|");
-    return candidates.find(product => canonicalProductIdentity(product) === target) || null;
+    const target = [brand, generic, dosage, strength].join("|");
+    const matches = candidates.filter(product => canonicalProductIdentity(product) === target);
+
+    // If legacy data contains duplicate rows for one canonical identity, do not
+    // silently choose one. Manual resolution is safer than mutating the wrong lot.
+    return matches.length === 1 ? matches[0] : null;
 }
