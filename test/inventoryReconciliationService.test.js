@@ -19,7 +19,7 @@ test("reconciliation service exposes the required invoice chain checks", () => {
         strength: "500 mg"
     };
     const expectedKey = canonicalProductIdentity(product);
-    assert.equal(expectedKey, "panadol|paracetamol|tablet|500mg");
+    assert.equal(expectedKey, "panadol|paracetamol|unspecified|tablet|500mg|unspecified");
     assert.deepEqual(
         ["tenantIsolation", "canonicalIdentity", "batchProductLink", "movementBatchLink", "purchaseDirection", "quantityAgreement", "stockAgreement"].sort(),
         ["canonicalIdentity", "batchProductLink", "movementBatchLink", "purchaseDirection", "quantityAgreement", "stockAgreement", "tenantIsolation"].sort()
