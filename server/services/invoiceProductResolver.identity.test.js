@@ -6,7 +6,7 @@ import {
     canonicalProductText
 } from "./invoiceProductResolver.js";
 
-test("canonical product identity includes the master item identity dimensions", () => {
+test("canonical product identity uses the master four identity dimensions", () => {
     const base = {
         brandName: "Panadol",
         genericName: "Paracetamol",
@@ -18,11 +18,11 @@ test("canonical product identity includes the master item identity dimensions", 
 
     assert.equal(
         canonicalProductIdentity(base),
-        "panadol|paracetamol|example pharma|tablet|500mg|100 tablets"
+        "panadol|paracetamol|tablet|500mg"
     );
 });
 
-test("different manufacturer produces a different product identity", () => {
+test("manufacturer is not a commercial identity dimension", () => {
     const base = {
         brandName: "Panadol",
         genericName: "Paracetamol",
@@ -33,10 +33,10 @@ test("different manufacturer produces a different product identity", () => {
     };
 
     const variant = { ...base, manufacturer: "Manufacturer B" };
-    assert.notEqual(canonicalProductIdentity(base), canonicalProductIdentity(variant));
+    assert.equal(canonicalProductIdentity(base), canonicalProductIdentity(variant));
 });
 
-test("different pack size produces a different product identity", () => {
+test("pack size is not a commercial identity dimension", () => {
     const base = {
         brandName: "Panadol",
         genericName: "Paracetamol",
@@ -47,7 +47,7 @@ test("different pack size produces a different product identity", () => {
     };
 
     const variant = { ...base, packSize: "20 tablets" };
-    assert.notEqual(canonicalProductIdentity(base), canonicalProductIdentity(variant));
+    assert.equal(canonicalProductIdentity(base), canonicalProductIdentity(variant));
 });
 
 test("formatting differences normalize to the same identity", () => {
@@ -72,7 +72,7 @@ test("formatting differences normalize to the same identity", () => {
     assert.equal(canonicalProductText("  Example   Pharma  "), "example pharma");
 });
 
-test("missing optional identity dimensions use stable unspecified markers", () => {
+test("missing optional identity dimensions remain deterministic", () => {
     const identity = canonicalProductIdentity({
         brandName: "Item",
         genericName: "Generic",
@@ -82,5 +82,5 @@ test("missing optional identity dimensions use stable unspecified markers", () =
         packSize: null
     });
 
-    assert.equal(identity, "item|generic|unspecified|unspecified||unspecified");
+    assert.equal(identity, "item|generic|unspecified|");
 });
