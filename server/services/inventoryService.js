@@ -8,11 +8,14 @@ function fail(message, statusCode = 400) { const error = new Error(message); err
 function objectId(value, label) { if (!ObjectId.isValid(value)) fail(`Invalid ${label}.`); return new ObjectId(value); }
 function positiveNumber(value, label) { const n = Number(value); if (!Number.isFinite(n) || n <= 0) fail(`${label} must be greater than zero.`); return n; }
 function futureOrToday(dateValue) { const date = new Date(dateValue); if (!dateValue || Number.isNaN(date.getTime())) fail("Expiry date is invalid."); const today = new Date(); today.setHours(0,0,0,0); if (date < today) fail("Cannot add stock with an already expired date."); return date; }
+function optionalDate(dateValue, label) { if (dateValue == null || String(dateValue).trim() === "") return null; const date = new Date(dateValue); if (Number.isNaN(date.getTime())) fail(`${label} is invalid.`); return date; }
 
-export async function createBatch({ tenantId, productId, batchNumber, quantity, expiryDate, branchId = null, costPrice = null, sellingPrice = null, location = null, supplierId = null, createdBy = null }) {
+export async function createBatch({ tenantId, productId, batchNumber, quantity, expiryDate, manufacturedDate = null, branchId = null, costPrice = null, sellingPrice = null, location = null, supplierId = null, createdBy = null }) {
     const productObjectId = objectId(productId, "product ID");
     const qty = positiveNumber(quantity, "Quantity");
     const expiry = futureOrToday(expiryDate);
+    const manufactured = optionalDate(manufacturedDate, "Manufactured date");
+    if (manufactured && manufactured > expiry) fail("Manufactured date cannot be after expiry date.");
     const number = String(batchNumber || "").trim();
     if (!number) fail("Batch number is required.");
     const branch = String(branchId || "").trim();
@@ -35,7 +38,7 @@ export async function createBatch({ tenantId, productId, batchNumber, quantity, 
             const product = await products.findOne({ _id: productObjectId, tenantId }, { session });
             if (!product) fail("Product not found in this tenant.", 404);
             const now = new Date();
-            const batch = { tenantId, productId: productObjectId, batchNumber: number, quantity: qty, expiryDate: expiry, branchId: activeBranch, costPrice: cost, sellingPrice: price, location: location ? String(location).trim() : null, supplierId: supplierId ? String(supplierId).trim() : null, createdBy, createdAt: now, updatedAt: now };
+            const batch = { tenantId, productId: productObjectId, batchNumber: number, quantity: qty, manufacturedDate: manufactured, expiryDate: expiry, branchId: activeBranch, costPrice: cost, sellingPrice: price, location: location ? String(location).trim() : null, supplierId: supplierId ? String(supplierId).trim() : null, createdBy, createdAt: now, updatedAt: now };
             const result = await batches.insertOne(batch, { session });
             await products.updateOne({ _id: productObjectId, tenantId }, { $inc: { stockQuantity: qty }, $set: { updatedAt: now } }, { session });
             await movements.insertOne({ tenantId, productId: productObjectId, batchId: result.insertedId, type: "PURCHASE", quantity: qty, direction: "IN", branchId: activeBranch, reference: `BATCH:${result.insertedId}`, notes: "Initial batch stock received", unitCost: cost, createdBy, createdAt: now }, { session });
