@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Smart Invoice Import</title>
+<style>
+body{margin:0;font-family:Arial,sans-serif;background:#f4f6f8;color:#172033}header{background:#1e40af;color:#fff;padding:22px}main{max-width:1250px;margin:auto;padding:20px}.card{background:#fff;border-radius:10px;padding:20px;margin-bottom:18px;box-shadow:0 4px 12px rgba(0,0,0,.08)}form{display:grid;gap:10px;max-width:650px}input,select,button{padding:11px;font-size:15px;border-radius:6px;border:1px solid #cbd5e1}button{background:#2563eb;color:#fff;border:0;font-weight:bold;cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.status{padding:10px;background:#f8fafc;border-radius:6px;margin-top:10px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:9px;border-bottom:1px solid #e5e7eb;text-align:left;vertical-align:top}.bad{background:#fff1f2}.good{background:#f0fdf4}.muted{color:#64748b}.danger{color:#b91c1c}.success{color:#166534}@media(max-width:700px){table{display:block;overflow:auto}}
+</style>
+</head>
+<body>
+<header><h1>Smart Invoice Import</h1><div>Securely preview an invoice, validate it, then install products and receive stock.</div></header>
+<main>
+<section class="card">
+<h2>1. Authenticate</h2>
+<form id="loginForm"><div class="row"><input id="username" placeholder="Username" autocomplete="username" required><input id="password" type="password" placeholder="Password" autocomplete="current-password" required></div><button>Sign in</button></form>
+<div id="authStatus" class="status">Not authenticated.</div>
+</section>
+<section class="card">
+<h2>2. Upload invoice</h2>
+<p class="muted">Accepted: CSV, TXT, XLSX, XLS, PDF, DOC, DOCX. Maximum 10 MB / 1,000 rows.</p>
+<form id="uploadForm"><input id="invoice" type="file" accept=".csv,.txt,.xlsx,.xls,.pdf,.doc,.docx" required><button id="previewButton" disabled>Preview Invoice</button></form>
+<div id="uploadStatus" class="status">Sign in before uploading.</div>
+</section>
+<section class="card" id="previewCard" hidden>
+<h2>3. Review before inventory mutation</h2>
+<div id="summary" class="status"></div>
+<div style="overflow:auto"><table><thead><tr><th>Row</th><th>Brand</th><th>Generic</th><th>Batch</th><th>Qty</th><th>UOM</th><th>Conversion</th><th>Expiry</th><th>Cost</th><th>Price</th><th>Validation</th></tr></thead><tbody id="previewBody"></tbody></table></div>
+<div class="row" style="margin-top:15px"><select id="branchId"><option value="">Default branch</option></select><button id="commitButton" disabled>Confirm & Install Inventory</button></div>
+<div id="commitStatus" class="status"></div>
+</section>
+</main>
+<script>
+const tokenKey="upp.session.token";
+let token=sessionStorage.getItem(tokenKey)||"";let previewRows=[];let previewFilename="";
+const $=id=>document.getElementById(id);
+function authHeaders(){return token?{Authorization:`Bearer ${token}`}:{}};
+function setAuth(message,ok=false){$("authStatus").textContent=message;$("authStatus").className=`status ${ok?"success":"danger"}`;$("previewButton").disabled=!token;}
+async function login(e){e.preventDefault();const r=await fetch("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:$("username").value,password:$("password").value})});const d=await r.json().catch(()=>({}));if(!r.ok||!d.token){token="";sessionStorage.removeItem(tokenKey);setAuth(d.error||"Login failed.");return}token=d.token;sessionStorage.setItem(tokenKey,token);setAuth("Authenticated for 8 hours.",true);loadBranches();}
+async function loadBranches(){const r=await fetch("/api/branches",{headers:authHeaders()});if(!r.ok)return;const d=await r.json();const s=$("branchId");for(const b of d.branches||[]){const o=document.createElement("option");o.value=b.branchId;o.textContent=b.name||b.branchId;s.appendChild(o)}}
+async function preview(e){e.preventDefault();const file=$("invoice").files[0];if(!file||!token)return;const form=new FormData();form.append("invoice",file);$("uploadStatus").textContent="Parsing and validating invoice…";const r=await fetch("/api/invoices/preview",{method:"POST",headers:authHeaders(),body:form});const d=await r.json().catch(()=>({}));if(!r.ok){$("uploadStatus").textContent=d.error||"Invoice preview failed.";return}previewRows=d.preview.rows||[];previewFilename=d.preview.filename;$("previewCard").hidden=false;$("summary").textContent=`${d.preview.rowCount} rows · ${d.preview.validRowCount} valid · ${d.preview.invalidRowCount} invalid · ${d.preview.readyToImport?"READY":"NOT READY"}`;renderRows();$("commitButton").disabled=!d.preview.readyToImport;$("uploadStatus").textContent="Preview complete. No inventory was changed.";}
+function renderRows(){const body=$("previewBody");body.innerHTML="";for(const r of previewRows){const tr=document.createElement("tr");if(r.errors.length)tr.className="bad";tr.innerHTML=`<td>${r.rowNumber}</td><td>${esc(r.brandName)}</td><td>${esc(r.genericName)}</td><td>${esc(r.batchNumber)}</td><td>${r.quantity??""}</td><td>${esc(r.uom)}</td><td>${r.conversionToBase}</td><td>${esc(r.expiryDate)}</td><td>${r.costPrice??""}</td><td>${r.sellingPrice??""}</td><td>${r.errors.length?`<span class="danger">${esc(r.errors.join(" "))}</span>`:r.warnings.length?`<span class="muted">${esc(r.warnings.join(" "))}</span>`:'<span class="success">OK</span>'}</td>`;body.appendChild(tr)}}
+function esc(v){return String(v??"").replace(/[&<>\"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}
+async function commit(){if(!previewRows.length||!token)return;$("commitButton").disabled=true;$("commitStatus").textContent="Importing…";const r=await fetch("/api/invoices/commit",{method:"POST",headers:{...authHeaders(),"Content-Type":"application/json"},body:JSON.stringify({filename:previewFilename,branchId:$("branchId").value||null,rows:previewRows})});const d=await r.json().catch(()=>({}));if(!r.ok){$("commitStatus").textContent=d.error||"Import failed.";$("commitButton").disabled=false;return}$("commitStatus").textContent=`Imported ${d.result.importedCount} row(s); created ${d.result.productsCreated} product(s) and ${d.result.batchesCreated} stock batch(es).`;}
+$("loginForm").addEventListener("submit",login);$("uploadForm").addEventListener("submit",preview);$("commitButton").addEventListener("click",commit);if(token){setAuth("Existing session token found.",true);loadBranches()}else setAuth("Not authenticated.");
+</script>
+</body>
+</html>

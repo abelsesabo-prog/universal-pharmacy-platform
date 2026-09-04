@@ -1,25 +1,30 @@
 import { getDatabase } from "../database/mongo.js";
+import config from "../config/config.js";
 
 export async function healthCheck(req, res) {
+    const startedAt = Date.now();
     try {
         const db = getDatabase();
-
         await db.command({ ping: 1 });
 
-        res.json({
+        return res.status(200).json({
             success: true,
-            application: "Universal Pharmacy Platform",
+            application: config.app.name,
             api: "online",
-            database: "connected"
+            database: "connected",
+            environment: config.app.environment,
+            uptimeSeconds: Math.floor(process.uptime()),
+            latencyMs: Date.now() - startedAt,
+            requestId: req.id
         });
-
     } catch (error) {
-        res.status(503).json({
+        console.error("Health check failed:", { requestId: req.id, error: error.message });
+        return res.status(503).json({
             success: false,
-            application: "Universal Pharmacy Platform",
+            application: config.app.name,
             api: "online",
             database: "disconnected",
-            error: error.message
+            requestId: req.id
         });
     }
 }

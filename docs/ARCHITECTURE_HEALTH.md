@@ -1,45 +1,58 @@
 # Architecture Health Gate
 
-Last engineering review: 2026-09-02.
+Last engineering review: 2026-09-04.
 
-## Repaired in the repository
+## Repaired and verified in the repository
 
-- Security headers, explicit CORS and API throttling
-- Dedicated login throttling
+- Security headers, explicit CORS and bounded API/login throttling
+- Request correlation IDs on API responses and errors
 - Persistent users/tenants with JWT identity verification
-- Tenant-scoped product operations
-- Tenant-scoped audit logging
-- Canonical MongoDB connection path; obsolete duplicate config connectors removed
+- Tenant-scoped product, batch, stock, sales, finance, complaint and audit operations
+- Canonical MongoDB connection path
 - Tenant-aware branch foundation with a default `MAIN` branch
 - Atomic batch receipt with stock movement creation
 - Branch-scoped inventory records
-- FEFO-style sale deduction from unexpired batches
-- Split-tender payment totals validated server-side
+- FEFO-style sale deduction from eligible batches
+- Split-tender payment validation
 - Sale, sale-item, stock-movement and audit indexes
-- Node tests and GitHub Actions CI
-- Express app factory for testability
-- Static serving of the client directory
-- Central product normalization reused by catalog installation
-- Catalog client bearer-token support
+- Idempotent immutable double-entry journal foundation and trial-balance checks
+- Accounting-policy validation and closed-period guards
+- Bounded delegated-action authorization, including financial posting and delegation administration controls
+- Smart Invoice import validation, safety boundaries and audit events
+- Offline IndexedDB/event synchronization contracts, retry policy, deterministic fingerprints and conflict handling
+- Live multi-device offline reconciliation acceptance on the integration branch
+- TMDA quarantine/disposition lifecycle and clinical-safety evidence contracts
+- Insurance workflow foundations, expiry watch and inter-branch relocation controls
+- Express app factory for deterministic Node tests
+- Static serving of the canonical `client/` browser shell
+- Canonical four-field product identity (brand, generic, dosage form, strength) with persisted `identityKey` contract
+- UOM matrix/base-unit invariants and server-authoritative UOM price/conversion enforcement
+- UOM-aware product setup and POS workflows with batch-level opening-stock creation
+- Node test suite and GitHub Actions CI
 
-## Important unresolved integration
+## Documentation consistency repairs
 
-The GitHub `client/index.html` was empty while a September 1 local development capture contained the larger POS/inventory frontend. That local capture was inspected independently. Its embedded JavaScript currently contains a syntax defect in the batch-response block: `const data =` is followed immediately by `if (!response.ok)`. Therefore the local frontend must be repaired before being promoted as the canonical repository frontend.
+Older architecture notes described `client/index.html` as empty and described the project as still being at the early Product/Batch foundation stage. Those statements no longer match the integration branch and have been removed from the active release guidance.
 
-Do not overwrite the repository with an older frontend snapshot merely because it is available in historical conversation material. The canonical local file should be reconciled and syntax-checked first.
+The product identity contract was also reconciled during the 2026-09-04 audit: manufacturer and pack size remain product attributes, while the canonical commercial identity remains the four dimensions defined by the product identity specification. Resolver ambiguity in legacy duplicate data is fail-closed rather than silently selecting a product.
 
-## Master-plan alignment
+## Remaining production evidence gates
 
-The master requirements specify offline IndexedDB/event synchronization, product/UOM intelligence, inventory and batch tracking, POS split tender, shift reconciliation, TMDA quarantine, interaction/allergy safety, insurance batching, expiry relocation, EFD integration, and future hospital/lab/enterprise domains. The repository now has stronger foundations for inventory and sales, but these advanced capabilities remain future implementation work.
+The following are intentionally not marked complete merely because repository contracts exist:
+
+1. Browser/device-level authentication and offline/service-worker acceptance on target hardware.
+2. Cross-tenant isolation and batch-receipt -> stock-movement -> FEFO-sale integration evidence against the production MongoDB deployment.
+3. Live NHIF/insurer adapters and current provider acceptance evidence.
+4. Live Tanzanian EFD device/network adapter and acceptance/certification evidence.
+5. Production SMS/email provider configuration and delivery evidence.
+6. Backup schedule, retention, restore drill, RPO/RTO and portable-export evidence.
+7. Full statutory accounting policy: selected chart of accounts, current tax rules, approved periods and financial statements reconciled to journal truth.
+8. Authoritative drug-interaction/allergy knowledge-source integration and clinical governance.
+9. Historical-data-backed predictive expiry/relocation scoring with human confirmation.
+10. Current statutory document templates and validation.
+
+Later hospital, laboratory and enterprise domains remain roadmap phases rather than missing pharmacy-core modules.
 
 ## Release gate
 
-A production release should not be called complete until:
-
-1. the canonical frontend is reconciled into Git;
-2. browser authentication is verified against protected API calls;
-3. cross-tenant isolation is integration-tested with two tenants;
-4. batch receipt -> stock movement -> FEFO sale is integration-tested against MongoDB;
-5. expired/quarantined stock is blocked from sale;
-6. CI is green;
-7. production environment validation is confirmed.
+A production release may be called complete only when the applicable repository tests are green **and** every external/evidence gate required by the selected deployment scope has a recorded runtime result. CI green means the repository contracts pass; it does not substitute for provider, device or operational acceptance.

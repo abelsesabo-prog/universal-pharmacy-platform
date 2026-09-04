@@ -1,15 +1,19 @@
-import { listJournals, postJournal, trialBalance } from "../services/ledgerService.js";
+import { postJournal, listJournals, trialBalance } from "../services/ledgerService.js";
 import { recordAudit } from "../services/auditService.js";
+
+function idempotencyKey(req) {
+    return req.get("Idempotency-Key") || req.body?.idempotencyKey;
+}
 
 export async function postJournalController(req, res, next) {
     try {
-        const { journal, duplicate } = await postJournal({
+        const result = await postJournal({
             tenantId: req.user.tenantId,
             branchId: req.body.branchId,
             currency: req.body.currency,
             referenceType: req.body.referenceType,
             referenceId: req.body.referenceId,
-            idempotencyKey: req.body.idempotencyKey,
+            idempotencyKey: idempotencyKey(req),
             description: req.body.description,
             lines: req.body.lines
         });
@@ -17,14 +21,14 @@ export async function postJournalController(req, res, next) {
             await recordAudit({
                 tenantId: req.user.tenantId,
                 actorId: req.user.sub,
-                action: duplicate ? "LEDGER_JOURNAL_DUPLICATE" : "LEDGER_JOURNAL_POSTED",
+                action: result.duplicate ? "LEDGER_JOURNAL_DUPLICATE" : "LEDGER_JOURNAL_POSTED",
                 resource: "ledger_journal",
-                resourceId: journal._id,
-                details: { referenceType: journal.referenceType, referenceId: journal.referenceId, idempotencyKey: journal.idempotencyKey, duplicate },
+                resourceId: result.journal?._id,
+                details: { idempotencyKey: result.journal?.idempotencyKey, duplicate: result.duplicate },
                 requestId: req.id
             });
         } catch (error) { console.error("Audit log write failed:", error.message); }
-        return res.status(duplicate ? 200 : 201).json({ success: true, duplicate, journal });
+        return res.status(result.duplicate ? 200 : 201).json({ success: true, duplicate: result.duplicate, journal: result.journal });
     } catch (error) { return next(error); }
 }
 
@@ -37,7 +41,7 @@ export async function listJournalsController(req, res, next) {
 
 export async function trialBalanceController(req, res, next) {
     try {
-        const accounts = await trialBalance({ tenantId: req.user.tenantId, branchId: req.query.branchId, currency: req.query.currency || "TZS" });
-        return res.json({ success: true, currency: String(req.query.currency || "TZS").toUpperCase(), accounts });
+        const accounts = await trialBalance({ tenantId: req.user.tenantId, branchId: req.query.branchId, currency: req.query.currency });
+        return res.json({ success: true, count: accounts.length, accounts });
     } catch (error) { return next(error); }
 }

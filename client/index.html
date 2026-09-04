@@ -1,1 +1,48 @@
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Pharmacy Platform — Control Center</title>
+    <link rel="stylesheet" href="/experience-layer.css">
+    <style>
+        :root{--bg:#f4f7fb;--panel:#fff;--line:#d8e2ec;--ink:#182337;--muted:#64748b;--brand:#173f9b;--accent:#2563eb;--danger:#b91c1c;--good:#166534}
+        *{box-sizing:border-box}
+        body{margin:0;background:var(--bg);color:var(--ink);font:14px Arial,Helvetica,sans-serif}
+        header{padding:18px 22px;background:linear-gradient(120deg,#173f9b,#285acb);color:#fff;position:sticky;top:0;z-index:20;box-shadow:0 8px 28px rgba(17,45,99,.18)}
+        .head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}.brand h1{margin:0;font-size:24px;letter-spacing:-.03em}.brand p{margin:5px 0 0;opacity:.82}
+        .nav{display:flex;gap:8px;flex-wrap:wrap}.nav a{color:#fff;text-decoration:none;border:1px solid rgba(255,255,255,.25);padding:8px 12px;border-radius:999px;font-weight:800;font-size:12px}.nav a.active{background:#fff;color:#173f9b}
+        main{max-width:1540px;margin:auto;padding:18px}.grid{display:grid;grid-template-columns:1.3fr .7fr;gap:18px}.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 14px 40px rgba(20,40,70,.08)}
+        .eyebrow{font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}.title{font-size:22px;font-weight:900;margin:4px 0 14px;letter-spacing:-.03em}
+        .actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.action{display:flex;flex-direction:column;justify-content:center;min-height:104px;padding:16px;border:1px solid #d8e2ec;border-radius:14px;text-decoration:none;color:var(--ink);background:linear-gradient(145deg,#fff,#f7faff);transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease}.action:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(25,57,96,.1);border-color:#9eb8df}.action strong{font-size:17px}.action span{margin-top:6px;font-size:12px;color:var(--muted);line-height:1.45}.primary-action{color:#fff;background:linear-gradient(135deg,#2563eb,#174ea6);border-color:transparent}.primary-action span{color:rgba(255,255,255,.76)}
+        .metrics{display:grid;gap:9px}.metric{padding:12px 13px;border:1px solid var(--line);border-radius:12px;background:#f8fafc}.metric strong{display:block;font-size:18px;margin-top:4px}.metric span{font-size:11px;color:var(--muted)}
+        .quick{display:grid;gap:9px;margin-top:14px}.quick a{display:flex;justify-content:space-between;align-items:center;padding:11px 12px;border:1px solid var(--line);border-radius:11px;color:var(--ink);text-decoration:none;background:#fff}.quick a:hover{border-color:#9eb8df}
+        .table-card{margin-top:18px;overflow:auto}table{width:100%;border-collapse:collapse}th,td{padding:11px;border-bottom:1px solid #e5ebf2;text-align:left;font-size:12px}th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+        .empty{text-align:center;color:var(--muted);padding:24px}.message{min-height:20px;margin-top:9px;color:var(--muted)}
+        @media(max-width:900px){.grid{grid-template-columns:1fr}.actions{grid-template-columns:1fr 1fr}}@media(max-width:620px){main{padding:10px}.actions{grid-template-columns:1fr}.brand h1{font-size:20px}.card{padding:14px;border-radius:13px}}
+    </style>
+</head>
+<body>
+<header><div class="head"><div class="brand"><h1>Universal Pharmacy Platform</h1><p id="status">Preparing the business control center…</p></div><nav class="nav"><a class="active" href="/">Home</a><a href="/pos-master.html">Sell</a><a href="/uom-product.html">Product Setup</a><a href="/uom-pos.html">UOM Lab</a><a href="/smart-invoice.html">Smart Invoice</a></nav></div></header>
+<main>
+<section class="grid">
+<div class="card"><div class="eyebrow">Human control center</div><div class="title">Start where the work is.</div><div class="actions">
+<a class="action primary-action" href="/pos-master.html"><strong>Sell</strong><span>Fast cashier workflow, live UOM calculation and payment workspace.</span></a>
+<a class="action" href="/uom-product.html"><strong>Product Setup</strong><span>Maintain commercial identity, packaging and selling-unit rules.</span></a>
+<a class="action" href="/uom-pos.html"><strong>UOM Lab</strong><span>Inspect variable units, conversions and base-stock consumption.</span></a>
+<a class="action" href="/smart-invoice.html"><strong>Smart Invoice</strong><span>Bring supplier documents into a reasoning-aware import flow.</span></a>
+</div></div>
+<div class="card"><div class="eyebrow">System posture</div><div class="title">One body. Many organs.</div><div class="metrics">
+<div class="metric"><span>Operational shell</span><strong>READY</strong></div><div class="metric"><span>Offline workflow</span><strong>CAPABLE</strong></div><div class="metric"><span>Regulated stock</span><strong>CONTROLLED</strong></div><div class="metric"><span>UOM model</span><strong>VARIABLE</strong></div>
+</div><div class="quick"><a href="/pos-master.html"><span>Open cashier</span><strong>→</strong></a><a href="/uom-product.html"><span>Configure product</span><strong>→</strong></a><a href="/smart-invoice.html"><span>Import supplier invoice</span><strong>→</strong></a></div></div>
+</section>
+<section class="card table-card"><div class="eyebrow">Attention surface</div><div class="title">Operational areas</div><table><thead><tr><th>Area</th><th>Purpose</th><th>State</th></tr></thead><tbody><tr><td>Sales</td><td>Cashier and transaction execution</td><td>Ready</td></tr><tr><td>Inventory</td><td>Products, batches and movements</td><td>Ready</td></tr><tr><td>UOM</td><td>Variable selling and base-unit reconciliation</td><td>Ready</td></tr><tr><td>Smart Invoice</td><td>Supplier document reasoning and import</td><td>Ready</td></tr><tr><td>TMDA</td><td>Regulated quarantine and disposition API</td><td>Secured</td></tr></tbody></table><div id="message" class="message"></div></section>
+</main>
+<script type="module" src="/ux-home.js"></script>
+<script type="module" src="/ux-shell.js"></script>
+<script>
+async function health(){const el=document.getElementById("status");try{const r=await fetch("/api/health");const d=await r.json();el.textContent=d.success?"Business control center ready — backend connected.":"Backend responded with a service warning."}catch{el.textContent="Control center available — backend connection pending."}}
+health();
+</script>
+</body>
+</html>

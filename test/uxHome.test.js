@@ -8,10 +8,10 @@ const stylePath = new URL("../client/experience-layer.css", import.meta.url);
 
 test("human home launcher provides direct operational workspace entry points", async () => {
     const source = await fs.readFile(homePath, "utf8");
-    assert.match(source, /href=\\"\/pos-master\.html\\"/);
-    assert.match(source, /href=\\"\/uom-product\.html\\"/);
-    assert.match(source, /href=\\"\/uom-pos\.html\\"/);
-    assert.match(source, /href=\\"\/smart-invoice\.html\\"/);
+    assert.match(source, /href="\/pos-master\.html"/);
+    assert.match(source, /href="\/uom-product\.html"/);
+    assert.match(source, /href="\/uom-pos\.html"/);
+    assert.match(source, /href="\/smart-invoice\.html"/);
 });
 
 test("human home launcher presents attention/status framing", async () => {

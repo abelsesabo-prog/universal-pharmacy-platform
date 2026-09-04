@@ -8,18 +8,22 @@
     "dev": "node --watch server/app.js",
     "start": "node server/app.js",
     "test": "node --test",
-    "migrate:product-tenants": "node server/scripts/backfillProductTenants.js"
+    "acceptance:offline": "node scripts/live-offline-reconciliation-check.js"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
-    "mongodb": "^6.19.0",
     "jsonwebtoken": "^9.0.2",
-    "bcryptjs": "^3.0.2"
+    "mongodb": "^6.19.0",
+    "multer": "^2.0.2",
+    "pdf-parse": "^2.4.5",
+    "word-extractor": "^1.0.4",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {}
 }

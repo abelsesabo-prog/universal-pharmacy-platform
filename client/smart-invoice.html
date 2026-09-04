@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Universal Pharmacy Platform — Smart Invoice</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#eef3f8;color:#172033;font:14px Arial,Helvetica,sans-serif}header{background:#1e40af;color:#fff;padding:14px 18px}.head{max-width:1500px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.nav{display:flex;gap:7px;flex-wrap:wrap}.nav a{color:#fff;text-decoration:none;border:1px solid #ffffff66;padding:8px 10px;border-radius:8px;font-weight:800;font-size:12px}.nav a.active{background:#fff;color:#1e40af}main{max-width:1500px;margin:auto;padding:14px}.grid{display:grid;grid-template-columns:minmax(300px,.75fr) minmax(600px,1.6fr);gap:14px}.card{background:#fff;border:1px solid #d6e0ea;border-radius:12px;box-shadow:0 4px 16px rgba(23,50,76,.08);padding:16px}.eyebrow{font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#64748b}h1,h2{margin:2px 0 8px}.field{display:grid;gap:5px;margin:10px 0}.field label{font-weight:800;font-size:12px}.field input,.field select{padding:10px;border:1px solid #c6d2df;border-radius:8px}.btn{border:0;border-radius:8px;padding:10px 12px;font-weight:900;cursor:pointer;background:#2563eb;color:#fff}.btn:disabled{opacity:.48;cursor:not-allowed}.status{margin-top:10px;padding:10px;border-radius:8px;background:#f8fafc}.success{color:#166534;background:#f0fdf4}.danger{color:#991b1b;background:#fff1f2}.toolbar{display:flex;gap:8px;flex-wrap:wrap}.toolbar>*{flex:1}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px;border-bottom:1px solid #e5e7eb;text-align:left;vertical-align:top}.bad{background:#fff1f2}.muted{color:#64748b}@media(max-width:1000px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><div class="head"><div><strong>Universal Pharmacy Platform</strong><div>Smart Invoice Import — Inventory Installation</div></div><nav class="nav"><a href="/pos-master.html">Sell</a><a href="/">Inventory</a><a class="active" href="/smart-invoice.html">Smart Invoice</a><a href="/uom-product.html">Product Setup</a><a href="/uom-pos.html">UOM Lab</a></nav></div></header>
+<main>
+<div class="grid">
+<section class="card">
+<div class="eyebrow">Controlled Import</div><h2>Authenticate</h2>
+<form id="login"><div class="field"><label>Username</label><input id="username" autocomplete="username" required></div><div class="field"><label>Password</label><input id="password" type="password" autocomplete="current-password" required></div><button class="btn">Sign in</button></form>
+<div id="auth" class="status">Not authenticated.</div>
+<hr>
+<div class="eyebrow">1 · Upload</div><div class="field"><label>Invoice file</label><input id="file" type="file" accept=".csv,.txt,.xlsx,.xls,.pdf,.doc,.docx"></div>
+<button class="btn" id="preview" disabled>Preview Invoice</button><div id="uploadStatus" class="status">Sign in before uploading.</div>
+</section>
+<section class="card">
+<div class="eyebrow">2 · Review → 3 · Install</div><h2>Invoice Preview</h2>
+<div id="summary" class="status">No invoice preview yet. Previewing never mutates inventory.</div>
+<div style="overflow:auto"><table><thead><tr><th>Row</th><th>Product</th><th>Batch</th><th>Qty</th><th>UOM</th><th>Base conversion</th><th>Expiry</th><th>Validation</th></tr></thead><tbody id="rows"></tbody></table></div>
+<div class="toolbar" style="margin-top:12px"><select id="branch"><option value="">Default branch</option></select><button class="btn" id="commit" disabled>Confirm & Install Inventory</button></div>
+<div id="commitStatus" class="status"></div>
+</section>
+</div>
+</main>
+<script>
+const key="upp.session.token";let token=sessionStorage.getItem(key)||"";let rows=[];let filename="";const $=id=>document.getElementById(id);const headers=()=>token?{Authorization:`Bearer ${token}`}:{};
+function auth(text,ok=false){$("auth").textContent=text;$("auth").className=`status ${ok?"success":"danger"}`;$("preview").disabled=!token}
+async function login(e){e.preventDefault();const r=await fetch("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:$("username").value,password:$("password").value})});const d=await r.json().catch(()=>({}));if(!r.ok||!d.token){token="";sessionStorage.removeItem(key);auth(d.error||"Login failed");return}token=d.token;sessionStorage.setItem(key,token);auth("Authenticated for 8 hours.",true);loadBranches()}
+async function loadBranches(){const r=await fetch("/api/branches",{headers:headers()});if(!r.ok)return;const d=await r.json();for(const b of d.branches||[]){const o=document.createElement("option");o.value=b.branchId;o.textContent=b.name||b.branchId;$("branch").appendChild(o)}}
+function esc(v){return String(v??"").replace(/[&<>\"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}
+async function preview(e){e.preventDefault();const f=$("file").files[0];if(!f||!token)return;const form=new FormData();form.append("invoice",f);$("uploadStatus").textContent="Parsing and validating…";const r=await fetch("/api/invoices/preview",{method:"POST",headers:headers(),body:form});const d=await r.json().catch(()=>({}));if(!r.ok){$("uploadStatus").textContent=d.error||"Preview failed.";return}rows=d.preview.rows||[];filename=d.preview.filename||f.name;$("summary").textContent=`${d.preview.rowCount} rows · ${d.preview.validRowCount} valid · ${d.preview.invalidRowCount} invalid · ${d.preview.readyToImport?"READY":"NOT READY"}`;$("rows").innerHTML=rows.map(x=>`<tr class="${x.errors.length?"bad":""}"><td>${x.rowNumber}</td><td>${esc(x.brandName)}<br><span class="muted">${esc(x.genericName)}</span></td><td>${esc(x.batchNumber)}</td><td>${x.quantity??""}</td><td>${esc(x.uom)}</td><td>${x.conversionToBase}</td><td>${esc(x.expiryDate)}</td><td>${x.errors.length?`<span class="danger">${esc(x.errors.join(" "))}</span>`:'<span class="success">OK</span>'}</td></tr>`).join("");$("commit").disabled=!d.preview.readyToImport;$("uploadStatus").textContent="Preview complete. No inventory changed."}
+async function commit(){if(!rows.length||!token)return;$("commit").disabled=true;$("commitStatus").textContent="Installing inventory atomically…";const r=await fetch("/api/invoices/commit",{method:"POST",headers:{...headers(),"Content-Type":"application/json"},body:JSON.stringify({filename,branchId:$("branch").value||null,rows})});const d=await r.json().catch(()=>({}));if(!r.ok){$("commitStatus").textContent=d.error||"Import failed.";$("commit").disabled=false;return}$("commitStatus").className="status success";$("commitStatus").textContent=`Installed ${d.result.importedCount} row(s), ${d.result.productsCreated} new product(s), ${d.result.batchesCreated} batch(es).`}
+$("login").addEventListener("submit",login);$("preview").addEventListener("click",preview);$("commit").addEventListener("click",commit);if(token){auth("Existing session token found.",true);loadBranches()}else auth("Not authenticated.");
+</script>
+</body>
+</html>

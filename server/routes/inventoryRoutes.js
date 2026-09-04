@@ -3,9 +3,11 @@ import { requireAuth, requireRole } from "../middleware/auth.js";
 import { createBatchController, listBatchesController, listStockMovementsController, adjustStockController } from "../controllers/inventoryController.js";
 
 const router = express.Router();
-router.use(requireAuth);
-router.get("/batches", listBatchesController);
-router.post("/batches", requireRole("admin", "manager"), createBatchController);
-router.get("/stock-movements", listStockMovementsController);
-router.post("/stock-movements", requireRole("admin", "manager"), adjustStockController);
+
+// Authentication is scoped to declared inventory endpoints so unknown /api routes can reach the terminal 404 handler.
+router.get("/batches", requireAuth, listBatchesController);
+router.post("/batches", requireAuth, requireRole("admin", "manager"), createBatchController);
+router.get("/stock-movements", requireAuth, listStockMovementsController);
+router.post("/stock-movements", requireAuth, requireRole("admin", "manager"), adjustStockController);
+
 export default router;
