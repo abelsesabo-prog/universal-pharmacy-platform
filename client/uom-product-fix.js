@@ -93,10 +93,7 @@
     try {
       const productResponse = await fetch("/api/products", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token()}`
-        },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token()}` },
         body: JSON.stringify(payload)
       });
       const productData = await productResponse.json().catch(() => ({}));
@@ -118,10 +115,7 @@
 
       const batchResponse = await fetch("/api/inventory/batches", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token()}`
-        },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token()}` },
         body: JSON.stringify(batchPayload)
       });
       const batchData = await batchResponse.json().catch(() => ({}));
@@ -139,6 +133,9 @@
   }
 
   function bind() {
+    // uom-product.html now owns the create lifecycle through a real form submit.
+    // Keep this fallback only for older cached pages that still expose the old button wiring.
+    if ($("itemForm")) return;
     const button = $("nextButton");
     if (!button || button.dataset.uomCreateFixBound === "1") return;
     button.dataset.uomCreateFixBound = "1";
