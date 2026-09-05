@@ -6,6 +6,7 @@ const worker = fs.readFileSync(new URL("../client/service-worker.js", import.met
 const shell = fs.readFileSync(new URL("../client/ux-shell.js", import.meta.url), "utf8");
 const acceptance = fs.readFileSync(new URL("../scripts/live-offline-reconciliation-check.js", import.meta.url), "utf8");
 const inventory = fs.readFileSync(new URL("../client/inventory.html", import.meta.url), "utf8");
+const app = fs.readFileSync(new URL("../server/app.js", import.meta.url), "utf8");
 
 test("browser offline worker caches the application shell", () => {
     assert.match(worker, /addEventListener\("install"/);
@@ -15,7 +16,7 @@ test("browser offline worker caches the application shell", () => {
     assert.match(worker, /request\.mode === "navigate"/);
     assert.match(worker, /caches\.match\(request\)/);
     assert.match(worker, /\/inventory\.html/);
-    assert.match(worker, /universal-pos-shell-v2/);
+    assert.match(worker, /universal-pos-shell-v3/);
 });
 
 test("browser navigation never falls back to Home for a missing cached page", () => {
@@ -36,6 +37,11 @@ test("UX shell registers the root-scoped browser service worker", () => {
 test("inventory page owns its direct route and active navigation", () => {
     assert.match(inventory, /<title>Universal Pharmacy Platform — Inventory<\/title>/);
     assert.match(inventory, /<a class="active" href="\/inventory\.html">Inventory<\/a>/);
+});
+
+test("server explicitly serves the inventory route", () => {
+    assert.match(app, /app\.get\("\/inventory\.html"/);
+    assert.match(app, /sendFile\(path\.join\(CLIENT_ROOT, "inventory\.html"\)/);
 });
 
 test("live acceptance requires tenant-scoped authenticated identities", () => {
