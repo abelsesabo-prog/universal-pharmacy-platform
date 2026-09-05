@@ -34,7 +34,6 @@ main{max-width:1500px;margin:auto;padding:14px}.offline{margin-bottom:12px;paddi
 <div class="catalog-title eyebrow">Quick catalog</div><div id="catalog" class="catalog"></div>
 <div class="rule">Cashier flow: <strong>product → batch → selling unit → quantity → add</strong>. After adding, the selling unit returns to the product's default/base unit.</div>
 </div></section>
-
 <section class="panel cart">
 <div class="ph"><div><div class="eyebrow">Transaction Workspace</div><h2>Current Sale</h2></div><span class="chip" id="count">0 lines</span></div>
 <div id="cart" class="cart-list"><div class="empty">No items in the current sale.</div></div>
@@ -47,7 +46,6 @@ main{max-width:1500px;margin:auto;padding:14px}.offline{margin-bottom:12px;paddi
 <button class="btn primary" id="complete" style="width:100%;margin-top:10px" disabled>Complete Sale</button>
 </div></section>
 </div>
-
 <section class="panel post"><div class="ph"><div><div class="eyebrow">Post-Sale</div><h2>Shift Desk</h2></div><span class="chip" id="shiftStatus">OPEN</span></div><div class="body postgrid">
 <div><div class="eyebrow">Expense Ledger</div><div class="hint" style="margin:5px 0 10px">Multiple expenses are supported. Each expense is assigned to its payment channel so the shift reconciliation can follow the money.</div><div id="expenses" class="list"></div><button class="btn secondary" id="addExpense" style="margin-top:8px">Add Expense</button><div class="bar" style="margin-top:9px"><span>Local shift expenses</span><strong id="expenseTotal">0 TZS</strong></div></div>
 <div><div class="eyebrow">Reasoning / Safety</div><div class="list" style="margin-top:7px"><div class="bar"><span>Zero-stock products</span><strong>Hidden</strong></div><div class="bar"><span>Expired batches</span><strong>Blocked</strong></div><div class="bar"><span>Duplicate generic review</span><strong id="interactionState">Clear</strong></div><div class="bar"><span>Predictive expiry watch</span><strong id="expiryState">Clear</strong></div><div class="bar"><span>Fiscal / EFD</span><strong>Adapter pending</strong></div><div class="bar"><span>SMS / Email</span><strong>Adapter pending</strong></div></div><div class="section"><div class="field"><label for="closeAck">Shift-close acknowledgement</label><input id="closeAck" placeholder="Type CLOSE SHIFT to enable review"></div><button class="btn primary" id="shiftClose" disabled>Review Shift Close</button></div></div>
@@ -55,11 +53,11 @@ main{max-width:1500px;margin:auto;padding:14px}.offline{margin-bottom:12px;paddi
 <section class="panel recent"><div class="ph"><div><div class="eyebrow">Post-Sale Verification</div><h2>Recent Transaction</h2></div></div><div id="recent" class="recent-body">No transaction completed yet.</div></section>
 </main>
 <script>
-const $=id=>document.getElementById(id);
-const state={products:[],batches:[],cart:[],offline:!navigator.onLine,expenses:[]};
-const setStatus=(text)=>$("status").textContent=text;
-function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}
-function syncOffline(){state.offline=!navigator.onLine;$("offline").classList.toggle("hidden",!state.offline);$("complete").disabled=state.offline||!state.cart.length;setStatus(state.offline?"Offline drafting mode":"Connected cashier workspace")}
+const $=id=>document.getElementById(id);const productEl=$("product"),batchEl=$("batch"),uomEl=$("uom"),qtyEl=$("qty"),searchEl=$("search");
+const session={token:sessionStorage.getItem("upp.session.token")||"",products:[],batches:[],cart:[],expenses:[]};
+const setStatus=t=>$("status").textContent=t;
+function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;"," ":"&gt;","\"":"&quot;","'":"&#39;"}[c]||c))}
+function syncOffline(){const off=!navigator.onLine;$("offline").classList.toggle("hidden",!off);$("complete").disabled=off||!session.cart.length;setStatus(off?"Offline drafting mode":"Connected cashier workspace")}
 window.addEventListener("online",syncOffline);window.addEventListener("offline",syncOffline);syncOffline();
 </script>
 </body>
