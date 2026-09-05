@@ -20,6 +20,15 @@ export function createApp() {
     app.use(cors(corsOptions));
     app.use(express.json({ limit: "1mb" }));
     app.use("/api", apiRateLimit, routes);
+
+    // Keep the inventory workspace on an explicit application route. This prevents
+    // deployment/router fallbacks from accidentally resolving /inventory.html to Home.
+    app.get("/inventory.html", (req, res, next) => {
+        res.sendFile(path.join(CLIENT_ROOT, "inventory.html"), error => {
+            if (error) next(error);
+        });
+    });
+
     app.use(express.static(CLIENT_ROOT, { index: "index.html", fallthrough: true }));
     app.use((req, res) => req.path.startsWith("/api/")
         ? res.status(404).json({ success: false, error: "API route not found.", requestId: req.id })
