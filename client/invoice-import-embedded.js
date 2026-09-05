@@ -40,6 +40,7 @@
         if (!response.ok) return;
         const data=await response.json().catch(()=>({}));
         const select=$("invoiceBranch");
+        select.querySelectorAll("option:not(:first-child)").forEach(option => option.remove());
         for (const branch of data.branches || []) {
             const option=document.createElement("option");
             option.value=branch.branchId;
@@ -81,11 +82,16 @@
         if (!response.ok) { $("invoiceCommitStatus").textContent=data.error || "Invoice import failed."; $("invoiceCommit").disabled=false; return; }
         $("invoiceCommitStatus").textContent=`Imported ${data.result.importedCount} row(s); created ${data.result.productsCreated} product(s) and ${data.result.batchesCreated} batch(es).`;
     }
-    window.addEventListener("upp:authenticated", () => {
-        token = sessionStorage.getItem(tokenKey) || "";
+    function adoptInventorySession() {
+        const nextToken = sessionStorage.getItem(tokenKey) || "";
+        if (!nextToken || nextToken === token) return;
+        token = nextToken;
         setAuth("Using the authenticated inventory session.", true);
         loadBranches();
-    });
+    }
+    window.addEventListener("upp:authenticated", adoptInventorySession);
+    window.addEventListener("storage", adoptInventorySession);
+    setInterval(adoptInventorySession, 500);
     $("invoiceLogin").addEventListener("submit", login);
     $("invoicePreview").addEventListener("click", preview);
     $("invoiceCommit").addEventListener("click", commit);
