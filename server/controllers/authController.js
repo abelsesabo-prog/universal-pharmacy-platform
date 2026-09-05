@@ -15,23 +15,22 @@ export async function loginController(req, res) {
     }
 
     try {
-        let user = await findActiveUser(username);
-
-        // One-time bootstrap: if the configured identity does not exist yet,
-        // persist it in MongoDB so future authentication is database-backed.
-        if (
-            !user &&
+        const isConfiguredBootstrapUser =
             username === config.security.authUsername &&
             config.security.authPasswordHash &&
-            config.security.authTenantId
-        ) {
-            user = await ensureBootstrapIdentity({
+            config.security.authTenantId;
+
+        // The configured bootstrap identity is authoritative. Always run its
+        // reconciliation so an existing MongoDB record cannot retain a stale
+        // password hash or tenant after Render/.env configuration changes.
+        let user = isConfiguredBootstrapUser
+            ? await ensureBootstrapIdentity({
                 username: config.security.authUsername,
                 passwordHash: config.security.authPasswordHash,
                 tenantId: config.security.authTenantId,
                 role: config.security.authRole
-            });
-        }
+            })
+            : await findActiveUser(username);
 
         if (!user) {
             return res.status(401).json({ error: "Invalid credentials." });
