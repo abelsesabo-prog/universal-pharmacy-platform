@@ -1,4 +1,4 @@
-const CACHE_NAME = "universal-pos-shell-v5";
+const CACHE_NAME = "universal-pos-shell-v6";
 const APP_SHELL = [
     "/",
     "/index.html",
@@ -7,6 +7,7 @@ const APP_SHELL = [
     "/ux-home.css",
     "/ux-shell.js",
     "/guided-flow.js",
+    "/uom-product-fix.js",
     "/invoice-import-embedded.js",
     "/pos-master.html",
     "/inventory.html",
@@ -31,14 +32,23 @@ self.addEventListener("activate", event => {
     );
 });
 
-async function withGuidedFlow(response) {
+async function withGuidedFlow(response, request) {
     if (!response || !response.ok) return response;
     const contentType = response.headers.get("content-type") || "";
     if (!contentType.includes("text/html")) return response;
     const html = await response.text();
-    if (html.includes("/guided-flow.js")) return new Response(html, { status:response.status, statusText:response.statusText, headers:response.headers });
-    if (!/<\/head>/i.test(html)) return new Response(html, { status:response.status, statusText:response.statusText, headers:response.headers });
-    const injected = html.replace(/<\/head>/i, '    <script src="/guided-flow.js"></script>\n</head>');
+    let injected = html;
+    if (!injected.includes("/guided-flow.js")) {
+        if (!/<\/head>/i.test(injected)) return new Response(injected, { status:response.status, statusText:response.statusText, headers:response.headers });
+        injected = injected.replace(/<\/head>/i, '    <script src="/guided-flow.js"></script>\n</head>');
+    }
+    if (request?.url) {
+        const path = new URL(request.url).pathname;
+        if (path === "/uom-product.html" && !injected.includes("/uom-product-fix.js") && /<\/head>/i.test(injected)) {
+            injected = injected.replace(/<\/head>/i, '    <script src="/uom-product-fix.js"></script>\n</head>');
+        }
+    }
+    if (injected === html) return new Response(html, { status:response.status, statusText:response.statusText, headers:response.headers });
     const headers = new Headers(response.headers);
     headers.delete("content-length");
     return new Response(injected, { status:response.status, statusText:response.statusText, headers });
@@ -54,7 +64,7 @@ self.addEventListener("fetch", event => {
     if (request.mode === "navigate") {
         event.respondWith(
             fetch(request)
-                .then(response => withGuidedFlow(response))
+                .then(response => withGuidedFlow(response, request))
                 .then(response => {
                     if (response.ok) {
                         const copy = response.clone();
@@ -62,7 +72,7 @@ self.addEventListener("fetch", event => {
                     }
                     return response;
                 })
-                .catch(() => caches.match(request).then(cached => cached ? withGuidedFlow(cached) : new Response(
+                .catch(() => caches.match(request).then(cached => cached ? withGuidedFlow(cached, request) : new Response(
                     "Offline page unavailable.",
                     { status:503, headers:{"Content-Type":"text/plain; charset=utf-8"} }
                 )))
