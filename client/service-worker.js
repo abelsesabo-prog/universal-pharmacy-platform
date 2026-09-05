@@ -1,4 +1,4 @@
-const CACHE_NAME = "universal-pos-shell-v4";
+const CACHE_NAME = "universal-pos-shell-v5";
 const APP_SHELL = [
     "/",
     "/index.html",
@@ -31,6 +31,19 @@ self.addEventListener("activate", event => {
     );
 });
 
+async function withGuidedFlow(response) {
+    if (!response || !response.ok) return response;
+    const contentType = response.headers.get("content-type") || "";
+    if (!contentType.includes("text/html")) return response;
+    const html = await response.text();
+    if (html.includes("/guided-flow.js")) return new Response(html, { status:response.status, statusText:response.statusText, headers:response.headers });
+    if (!/<\/head>/i.test(html)) return new Response(html, { status:response.status, statusText:response.statusText, headers:response.headers });
+    const injected = html.replace(/<\/head>/i, '    <script src="/guided-flow.js"></script>\n</head>');
+    const headers = new Headers(response.headers);
+    headers.delete("content-length");
+    return new Response(injected, { status:response.status, statusText:response.statusText, headers });
+}
+
 self.addEventListener("fetch", event => {
     const request = event.request;
     const url = new URL(request.url);
@@ -41,6 +54,7 @@ self.addEventListener("fetch", event => {
     if (request.mode === "navigate") {
         event.respondWith(
             fetch(request)
+                .then(response => withGuidedFlow(response))
                 .then(response => {
                     if (response.ok) {
                         const copy = response.clone();
@@ -48,9 +62,9 @@ self.addEventListener("fetch", event => {
                     }
                     return response;
                 })
-                .catch(() => caches.match(request).then(cached => cached || new Response(
+                .catch(() => caches.match(request).then(cached => cached ? withGuidedFlow(cached) : new Response(
                     "Offline page unavailable.",
-                    { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } }
+                    { status:503, headers:{"Content-Type":"text/plain; charset=utf-8"} }
                 )))
         );
         return;
