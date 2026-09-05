@@ -3,12 +3,12 @@
     if (!host) return;
     host.innerHTML = `
       <section class="invoice-card">
-        <div class="invoice-head"><div><h2>Smart Invoice Import</h2><p>Upload supplier invoices, review normalized rows, then install verified inventory.</p></div><span class="invoice-badge">Manager / Admin</span></div>
+        <div class="invoice-head"><div><h2>Smart Invoice Import</h2><p>Upload supplier invoices, including scanned/image-based documents, review normalized rows, then install verified inventory.</p></div><span class="invoice-badge">Manager / Admin</span></div>
         <div class="invoice-grid">
           <div class="invoice-step"><h3>1. Access</h3><form id="invoiceLogin"><input id="invoiceUsername" placeholder="Username" autocomplete="username" required><input id="invoicePassword" type="password" placeholder="Password" autocomplete="current-password" required><button>Sign in</button></form><div id="invoiceAuthStatus" class="invoice-status">Use the authenticated inventory session.</div></div>
-          <div class="invoice-step"><h3>2. Upload</h3><input id="invoiceFile" type="file" accept=".csv,.txt,.xlsx,.xls,.pdf,.doc,.docx" disabled><button id="invoicePreview" disabled>Preview invoice</button><div id="invoiceUploadStatus" class="invoice-status">Authenticate in Inventory before uploading.</div></div>
+          <div class="invoice-step"><h3>2. Upload</h3><input id="invoiceFile" type="file" accept=".csv,.txt,.xlsx,.xls,.pdf,.doc,.docx,.png,.jpg,.jpeg,.webp" disabled><button id="invoicePreview" disabled>Preview invoice</button><div id="invoiceUploadStatus" class="invoice-status">Authenticate in Inventory before uploading.</div></div>
         </div>
-        <div id="invoiceReview" hidden><h3>3. Review before inventory mutation</h3><div id="invoiceSummary" class="invoice-status"></div><div class="invoice-table-wrap"><table><thead><tr><th>Row</th><th>Product</th><th>Batch</th><th>Qty</th><th>UOM</th><th>Conversion</th><th>Expiry</th><th>Validation</th></tr></thead><tbody id="invoiceRows"></tbody></table></div><div class="invoice-actions"><select id="invoiceBranch"><option value="">Default branch</option></select><button id="invoiceCommit" disabled>Confirm & Install Inventory</button></div><div id="invoiceCommitStatus" class="invoice-status"></div></div>
+        <div id="invoiceReview" hidden><h3>3. Review before inventory mutation</h3><div id="invoiceSummary" class="invoice-status"></div><div class="invoice-table-wrap"><table><thead><tr><th>Row</th><th>Product</th><th>Batch</th><th>Qty</th><th>Free</th><th>UOM</th><th>Conversion</th><th>Expiry</th><th>Validation</th></tr></thead><tbody id="invoiceRows"></tbody></table></div><div class="invoice-actions"><select id="invoiceBranch"><option value="">Default branch</option></select><button id="invoiceCommit" disabled>Confirm & Install Inventory</button></div><div id="invoiceCommitStatus" class="invoice-status"></div></div>
       </section>`;
 
     const tokenKey = "upp.session.token";
@@ -54,23 +54,24 @@
         if (!file || !token) return;
         const form=new FormData();
         form.append("invoice", file);
-        $("invoiceUploadStatus").textContent="Parsing and validating invoice…";
+        $("invoiceUploadStatus").textContent="Inspecting invoice structure and visual content…";
         const response=await fetch("/api/invoices/preview", { method:"POST", headers:headers(), body:form });
         const data=await response.json().catch(()=>({}));
         if (!response.ok) { $("invoiceUploadStatus").textContent=data.error || "Invoice preview failed."; return; }
         previewRows=data.preview.rows || [];
         previewFilename=data.preview.filename || file.name;
         $("invoiceReview").hidden=false;
-        $("invoiceSummary").textContent=`${data.preview.rowCount} rows · ${data.preview.validRowCount} valid · ${data.preview.invalidRowCount} invalid · ${data.preview.readyToImport ? "READY" : "NOT READY"}`;
+        const method = data.preview.extractionMethod === "visual-ai" ? " · Visual AI extraction" : " · Structured extraction";
+        $("invoiceSummary").textContent=`${data.preview.rowCount} rows · ${data.preview.validRowCount} valid · ${data.preview.invalidRowCount} invalid · ${data.preview.readyToImport ? "READY" : "NOT READY"}${method}`;
         const body=$("invoiceRows"); body.innerHTML="";
         for (const row of previewRows) {
             const tr=document.createElement("tr");
             tr.className=row.errors?.length ? "invoice-bad" : "";
-            tr.innerHTML=`<td>${row.rowNumber}</td><td>${esc(row.brandName || row.genericName)}</td><td>${esc(row.batchNumber)}</td><td>${row.quantity ?? ""}</td><td>${esc(row.uom)}</td><td>${row.conversionToBase}</td><td>${esc(row.expiryDate)}</td><td>${row.errors?.length ? `<span class="invoice-danger">${esc(row.errors.join(" "))}</span>` : `<span class="invoice-ok">OK</span>`}</td>`;
+            tr.innerHTML=`<td>${row.rowNumber}</td><td>${esc(row.brandName || row.genericName)}</td><td>${esc(row.batchNumber)}</td><td>${row.quantity ?? ""}</td><td>${row.freeQuantity ?? 0}</td><td>${esc(row.uom)}</td><td>${row.conversionToBase}</td><td>${esc(row.expiryDate)}</td><td>${row.errors?.length ? `<span class="invoice-danger">${esc(row.errors.join(" "))}</span>` : `<span class="invoice-ok">OK</span>`}</td>`;
             body.appendChild(tr);
         }
         $("invoiceCommit").disabled=!data.preview.readyToImport;
-        $("invoiceUploadStatus").textContent="Preview complete. No inventory was changed.";
+        $("invoiceUploadStatus").textContent=data.preview.extractionMethod === "visual-ai" ? "Visual invoice recognized. Review the extracted rows before inventory changes." : "Preview complete. No inventory was changed.";
     }
     async function commit(event) {
         event.preventDefault();
