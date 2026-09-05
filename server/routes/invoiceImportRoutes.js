@@ -11,7 +11,7 @@ const upload = multer({
     limits: { fileSize: MAX_INVOICE_BYTES, files: 1 },
     fileFilter: (req, file, cb) => {
         const ext = String(file.originalname || "").toLowerCase().match(/\.[^.]+$/)?.[0];
-        cb(null, [".csv", ".txt", ".xlsx", ".xls", ".pdf", ".doc", ".docx"].includes(ext));
+        cb(null, [".csv", ".txt", ".xlsx", ".xls", ".pdf", ".doc", ".docx", ".png", ".jpg", ".jpeg", ".webp"].includes(ext));
     }
 });
 
