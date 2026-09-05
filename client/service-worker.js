@@ -1,4 +1,4 @@
-const CACHE_NAME = "universal-pos-shell-v3";
+const CACHE_NAME = "universal-pos-shell-v4";
 const APP_SHELL = [
     "/",
     "/index.html",
@@ -6,6 +6,8 @@ const APP_SHELL = [
     "/ux-home.js",
     "/ux-home.css",
     "/ux-shell.js",
+    "/guided-flow.js",
+    "/invoice-import-embedded.js",
     "/pos-master.html",
     "/inventory.html",
     "/uom-product.html",
