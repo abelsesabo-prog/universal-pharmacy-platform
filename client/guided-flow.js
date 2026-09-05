@@ -15,11 +15,15 @@
 
   const bar = document.getElementById('uppGuidedFlow');
   const text = bar.querySelector('.guide-text');
+  let advanceTimer = null;
+  let lastAdvanced = null;
+
   const isVisible = el => {
     if (!el || el.disabled || el.type === 'hidden') return false;
     const s = getComputedStyle(el), r = el.getBoundingClientRect();
     return s.display !== 'none' && s.visibility !== 'hidden' && r.width > 0 && r.height > 0;
   };
+
   const labelFor = el => {
     if (el.id) {
       const label = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
@@ -27,12 +31,14 @@
     }
     return el.getAttribute('aria-label') || el.placeholder || 'next field';
   };
+
   const fieldCandidates = root => [...root.querySelectorAll('input,select,textarea')].filter(el => {
     if (!isVisible(el)) return false;
     if (['button','submit','reset','file'].includes((el.type || '').toLowerCase())) return false;
     if (['username','password','filter','invoiceUsername','invoicePassword'].includes(el.id)) return false;
     return true;
   });
+
   const activeRoot = () => {
     const activeStep = document.querySelector('.step.active');
     if (activeStep) return activeStep;
@@ -40,6 +46,7 @@
     if (workspace && !workspace.classList.contains('hidden')) return workspace;
     return document.querySelector('main') || document.body;
   };
+
   const rootFor = current => current?.closest('.card,.invoice-step,.wizard') || activeRoot();
   const nextButton = () => document.getElementById('nextButton');
   const actionButton = root => [...root.querySelectorAll('button')].find(b => isVisible(b) && !b.disabled && /^(receive stock|post adjustment|create item|save|submit|confirm)/i.test(b.textContent.trim()));
@@ -61,22 +68,39 @@
     const root = rootFor(current);
     const fields = fieldCandidates(root);
     const index = fields.indexOf(current);
-    if (index >= 0 && fields[index + 1]) return focusField(fields[index + 1]);
+    if (index >= 0 && fields[index + 1]) {
+      lastAdvanced = fields[index + 1];
+      return focusField(fields[index + 1]);
+    }
 
     const next = nextButton();
     if (next && isVisible(next) && !next.disabled) {
       next.click();
       setTimeout(() => {
         const first = fieldCandidates(activeRoot())[0];
-        if (first) focusField(first); else bar.hidden = true;
+        if (first) { lastAdvanced = first; focusField(first); } else bar.hidden = true;
       }, 120);
       return true;
     }
 
     const action = actionButton(root);
-    if (action) { focusField(action); return true; }
+    if (action) { lastAdvanced = action; return focusField(action); }
     bar.hidden = true;
     return false;
+  }
+
+  function scheduleAutoAdvance(target) {
+    clearTimeout(advanceTimer);
+    if (!isVisible(target) || target.type === 'password' || target.type === 'file' || target.id === 'filter') return;
+
+    const value = String(target.value ?? '').trim();
+    if (!value) return;
+
+    advanceTimer = setTimeout(() => {
+      if (document.activeElement !== target) return;
+      if (!String(target.value ?? '').trim()) return;
+      advance(target);
+    }, target.tagName === 'SELECT' ? 180 : 850);
   }
 
   document.addEventListener('keydown', event => {
@@ -85,10 +109,21 @@
     if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement)) return;
     if (target.type === 'password' || target.type === 'file' || target.id === 'filter') return;
     if (!isVisible(target)) return;
+    clearTimeout(advanceTimer);
     event.preventDefault();
     event.stopImmediatePropagation();
     advance(target);
   }, true);
+
+  document.addEventListener('input', event => {
+    const target = event.target;
+    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) scheduleAutoAdvance(target);
+  });
+
+  document.addEventListener('change', event => {
+    const target = event.target;
+    if (target instanceof HTMLSelectElement) scheduleAutoAdvance(target);
+  });
 
   document.addEventListener('focusin', event => {
     const target = event.target;
