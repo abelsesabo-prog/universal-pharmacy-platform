@@ -7,10 +7,11 @@ import { createBatch } from "./inventoryService.js";
 import { getCollection } from "./index.js";
 import { COLLECTIONS } from "../../shared/schemas/index.js";
 import { normalizeUomMatrix, validateUomConfiguration } from "../../shared/uom.js";
+import { extractVisualInvoice, visualInvoiceAvailable } from "./invoiceVisionService.js";
 
 export const MAX_INVOICE_BYTES = 10 * 1024 * 1024;
 export const MAX_INVOICE_ROWS = 1000;
-export const SUPPORTED_INVOICE_EXTENSIONS = [".csv", ".txt", ".xlsx", ".xls", ".pdf", ".doc", ".docx"];
+export const SUPPORTED_INVOICE_EXTENSIONS = [".csv", ".txt", ".xlsx", ".xls", ".pdf", ".doc", ".docx", ".png", ".jpg", ".jpeg", ".webp"];
 
 const HEADER_ALIASES = {
     brandName: ["brand", "brand name", "brandname", "product", "product name", "item", "item name"],
@@ -23,10 +24,11 @@ const HEADER_ALIASES = {
     barcode: ["barcode", "ean", "gtin", "sku"],
     batchNumber: ["batch", "batch number", "batchnumber", "lot", "lot number"],
     quantity: ["qty", "quantity", "units", "stock", "received"],
+    freeQuantity: ["free", "free qty", "free quantity", "foc", "bonus", "bonus qty"],
     uom: ["uom", "unit", "selling unit", "pack", "pack size unit"],
     conversionToBase: ["conversion", "conversion to base", "conversiontobase", "pack size", "units per pack", "factor"],
     expiryDate: ["expiry", "expiry date", "expirydate", "expiration", "expiration date"],
-    costPrice: ["cost", "cost price", "costprice", "buy price", "purchase price"],
+    costPrice: ["cost", "cost price", "costprice", "buy price", "purchase price", "rate", "unit price"],
     sellingPrice: ["price", "selling price", "sellingprice", "sale price", "retail price"]
 };
 
@@ -38,6 +40,12 @@ function isoDate(value) {
     if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
     const raw = clean(value);
     if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(raw)) return raw.replace(/\//g, "-");
+    const monthYear = raw.match(/^(\d{1,2})[./-](\d{2}|\d{4})$/);
+    if (monthYear) {
+        const month = Number(monthYear[1]);
+        const year = Number(monthYear[2].length === 2 ? `20${monthYear[2]}` : monthYear[2]);
+        if (month >= 1 && month <= 12 && year >= 2000 && year <= 2100) return new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
+    }
     const dmy = raw.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
     if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, "0")}-${dmy[1].padStart(2, "0")}`;
     const date = new Date(raw);
@@ -89,6 +97,7 @@ function rowsFromMatrix(matrix) {
     }
     const headers = rows[bestIndex];
     const mapping = mapHeaders(headers);
+    if (mapping.filter(([field]) => field).length === 0) return [];
     const result = [];
     for (const cells of rows.slice(bestIndex + 1)) {
         const item = {};
@@ -111,11 +120,13 @@ function normalizeRow(raw, rowNumber) {
         barcode: raw.barcode == null ? null : clean(raw.barcode),
         batchNumber: clean(raw.batchNumber),
         quantity: number(raw.quantity),
+        freeQuantity: number(raw.freeQuantity) || 0,
         uom: clean(raw.uom).toLowerCase() || "piece",
         conversionToBase: number(raw.conversionToBase) || 1,
         expiryDate: isoDate(raw.expiryDate),
         costPrice: number(raw.costPrice),
         sellingPrice: number(raw.sellingPrice),
+        extractionMethod: raw._extractionMethod || "structured",
         errors: [],
         warnings: []
     };
@@ -138,6 +149,10 @@ async function extractBuffer(buffer, filename) {
     }
     if (buffer.length > MAX_INVOICE_BYTES) { const error = new Error("Invoice file exceeds the 10 MB safety limit."); error.statusCode = 413; throw error; }
 
+    if ([".png", ".jpg", ".jpeg", ".webp"].includes(ext)) {
+        return extractVisualInvoice(buffer, filename);
+    }
+
     if (ext === ".xlsx" || ext === ".xls") {
         const workbook = xlsx.read(buffer, { type: "buffer", cellDates: true, dense: true });
         const matrices = workbook.SheetNames.map(name => xlsx.utils.sheet_to_json(workbook.Sheets[name], { header: 1, raw: true, defval: "" }));
@@ -153,8 +168,13 @@ async function extractBuffer(buffer, filename) {
             const mappedTables = rowsFromMatrix(tableRows);
             if (mappedTables.length) return mappedTables;
             const textResult = await parser.getText();
-            return rowsFromMatrix(parseDelimited(textResult.text));
+            const mappedText = rowsFromMatrix(parseDelimited(textResult.text));
+            if (mappedText.length) return mappedText;
         } finally { await parser.destroy(); }
+        if (visualInvoiceAvailable()) return extractVisualInvoice(buffer, filename);
+        const error = new Error("PDF contains no machine-readable invoice rows. Visual invoice recognition is not configured on the server.");
+        error.statusCode = 422;
+        throw error;
     }
 
     if (ext === ".doc" || ext === ".docx") {
@@ -171,9 +191,11 @@ export async function previewInvoice(buffer, filename) {
     if (rawRows.length > MAX_INVOICE_ROWS) { const error = new Error(`Invoice contains more than ${MAX_INVOICE_ROWS} rows.`); error.statusCode = 413; throw error; }
     const rows = rawRows.map((row, index) => normalizeRow(row, index + 1));
     const validRows = rows.filter(row => row.errors.length === 0);
+    const visualCount = rows.filter(row => row.extractionMethod === "visual-ai").length;
     return {
         filename: clean(filename),
         supported: true,
+        extractionMethod: visualCount ? "visual-ai" : "structured",
         rowCount: rows.length,
         validRowCount: validRows.length,
         invalidRowCount: rows.length - validRows.length,
@@ -239,7 +261,7 @@ export async function commitInvoice({ tenantId, createdBy, branchId, rows, filen
         }
 
         const conversion = row.uom === (product.baseUnit || "piece") ? 1 : row.conversionToBase;
-        const baseQuantity = row.quantity * conversion;
+        const baseQuantity = (row.quantity + row.freeQuantity) * conversion;
         const batch = await createBatch({
             tenantId,
             productId: new ObjectId(product._id),
