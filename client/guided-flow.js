@@ -3,7 +3,7 @@
   window.__uppGuidedFlow = true;
 
   const css = `
-    #uppGuidedFlow{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:9999;display:flex;align-items:center;gap:10px;max-width:min(720px,calc(100vw - 24px));padding:10px 14px;border:1px solid #cbd5e1;border-radius:12px;background:#fff;box-shadow:0 8px 30px rgba(15,23,42,.16);font:700 13px Arial,Helvetica,sans-serif;color:#172033}
+    #uppGuidedFlow{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:9999;display:flex;align-items:center;gap:10px;max-width:min(720px,calc(100vw - 24px));padding:10px 14px;border:1px solid #cbd5e1;border-radius:12px;background:#fff;box-shadow:0 8px 30px rgba(15,23,42,.16);font:700 13px Arial,Helvetica,sans-serif;color:#172033;pointer-events:none}
     #uppGuidedFlow[hidden]{display:none}
     #uppGuidedFlow .guide-dot{width:8px;height:8px;border-radius:50%;background:#2563eb;flex:none}
     #uppGuidedFlow .guide-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -78,7 +78,12 @@
       next.click();
       setTimeout(() => {
         const first = fieldCandidates(activeRoot())[0];
-        if (first) { lastAdvanced = first; focusField(first); } else bar.hidden = true;
+        if (first) { lastAdvanced = first; focusField(first); }
+        else {
+          const action = actionButton(activeRoot());
+          if (action) { lastAdvanced = action; focusField(action); }
+          else bar.hidden = true;
+        }
       }, 120);
       return true;
     }
