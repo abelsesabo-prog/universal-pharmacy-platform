@@ -1,4 +1,4 @@
-const CACHE_NAME = "universal-pos-shell-v1";
+const CACHE_NAME = "universal-pos-shell-v2";
 const APP_SHELL = [
     "/",
     "/index.html",
@@ -7,6 +7,7 @@ const APP_SHELL = [
     "/ux-home.css",
     "/ux-shell.js",
     "/pos-master.html",
+    "/inventory.html",
     "/uom-product.html",
     "/uom-pos.html",
     "/smart-invoice.html"
@@ -45,7 +46,10 @@ self.addEventListener("fetch", event => {
                     }
                     return response;
                 })
-                .catch(() => caches.match(request).then(cached => cached || caches.match("/index.html")))
+                .catch(() => caches.match(request).then(cached => cached || new Response(
+                    "Offline page unavailable.",
+                    { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } }
+                )))
         );
         return;
     }
