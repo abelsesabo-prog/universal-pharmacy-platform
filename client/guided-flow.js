@@ -40,13 +40,13 @@
     if (workspace && !workspace.classList.contains('hidden')) return workspace;
     return document.querySelector('main') || document.body;
   };
+  const rootFor = current => current?.closest('.card,.invoice-step,.wizard') || activeRoot();
   const nextButton = () => document.getElementById('nextButton');
   const actionButton = root => [...root.querySelectorAll('button')].find(b => isVisible(b) && !b.disabled && /^(receive stock|post adjustment|create item|save|submit|confirm)/i.test(b.textContent.trim()));
 
   function announce(el) {
     if (!el || !isVisible(el)) { bar.hidden = true; return; }
-    const label = labelFor(el);
-    text.textContent = `Next: ${label}`;
+    text.textContent = `Next: ${labelFor(el)}`;
     bar.hidden = false;
   }
 
@@ -58,12 +58,11 @@
   }
 
   function advance(current) {
-    const root = activeRoot();
+    const root = rootFor(current);
     const fields = fieldCandidates(root);
     const index = fields.indexOf(current);
     if (index >= 0 && fields[index + 1]) return focusField(fields[index + 1]);
 
-    // Product-entry wizard: finishing the last field in a step moves to the next step.
     const next = nextButton();
     if (next && isVisible(next) && !next.disabled) {
       next.click();
@@ -80,8 +79,6 @@
     return false;
   }
 
-  // Capture before page-level Enter handlers so generic->brand and other adjacent fields
-  // never get skipped by a coarse step-level Enter handler.
   document.addEventListener('keydown', event => {
     if (event.key !== 'Enter' || event.isComposing) return;
     const target = event.target;
