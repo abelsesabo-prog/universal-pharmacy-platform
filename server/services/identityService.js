@@ -17,16 +17,88 @@ export async function ensureBootstrapIdentity({ username, passwordHash, tenantId
     const normalizedUsername = String(username || "").trim();
     if (!normalizedTenantId || !normalizedUsername || !passwordHash) return null;
 
-    await tenants.updateOne({ tenantId: normalizedTenantId }, { $setOnInsert: { tenantId: normalizedTenantId, name: normalizedTenantId, status: "active", createdAt: new Date() } }, { upsert: true });
+    await tenants.updateOne(
+        { tenantId: normalizedTenantId },
+        {
+            $setOnInsert: {
+                tenantId: normalizedTenantId,
+                name: normalizedTenantId,
+                status: "active",
+                createdAt: new Date()
+            }
+        },
+        { upsert: true }
+    );
     await ensureDefaultBranch(normalizedTenantId);
 
     const existing = await users.findOne({ username: normalizedUsername });
-    if (existing) return existing;
-    const user = { userId: randomUUID(), username: normalizedUsername, passwordHash, tenantId: normalizedTenantId, role: normalizeRole(role), status: "active", createdAt: new Date(), updatedAt: new Date() };
+    if (existing) {
+        // The configured bootstrap identity is authoritative. Reconcile an
+        // existing record so stale credentials from an earlier deployment do
+        // not permanently override AUTH_PASSWORD_HASH / AUTH_TENANT_ID.
+        const roleValue = normalizeRole(role);
+        const needsRepair =
+            existing.passwordHash !== passwordHash ||
+            existing.tenantId !== normalizedTenantId ||
+            existing.role !== roleValue ||
+            existing.status !== "active";
+
+        if (needsRepair) {
+            await users.updateOne(
+                { _id: existing._id },
+                {
+                    $set: {
+                        passwordHash,
+                        tenantId: normalizedTenantId,
+                        role: roleValue,
+                        status: "active",
+                        updatedAt: new Date()
+                    }
+                }
+            );
+            return {
+                ...existing,
+                passwordHash,
+                tenantId: normalizedTenantId,
+                role: roleValue,
+                status: "active"
+            };
+        }
+
+        return existing;
+    }
+
+    const user = {
+        userId: randomUUID(),
+        username: normalizedUsername,
+        passwordHash,
+        tenantId: normalizedTenantId,
+        role: normalizeRole(role),
+        status: "active",
+        createdAt: new Date(),
+        updatedAt: new Date()
+    };
     await users.insertOne(user);
     return user;
 }
 
-export async function findActiveUser(username) { return getCollection(COLLECTIONS.USERS).findOne({ username: String(username || "").trim(), status: "active" }); }
-export async function findActiveUserById(userId) { return getCollection(COLLECTIONS.USERS).findOne({ userId: String(userId || "").trim(), status: "active" }); }
-export async function findActiveTenant(tenantId) { return getCollection(COLLECTIONS.TENANTS).findOne({ tenantId: String(tenantId || "").trim(), status: "active" }); }
+export async function findActiveUser(username) {
+    return getCollection(COLLECTIONS.USERS).findOne({
+        username: String(username || "").trim(),
+        status: "active"
+    });
+}
+
+export async function findActiveUserById(userId) {
+    return getCollection(COLLECTIONS.USERS).findOne({
+        userId: String(userId || "").trim(),
+        status: "active"
+    });
+}
+
+export async function findActiveTenant(tenantId) {
+    return getCollection(COLLECTIONS.TENANTS).findOne({
+        tenantId: String(tenantId || "").trim(),
+        status: "active"
+    });
+}
