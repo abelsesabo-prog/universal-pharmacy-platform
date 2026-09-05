@@ -5,6 +5,7 @@ import fs from "node:fs";
 const worker = fs.readFileSync(new URL("../client/service-worker.js", import.meta.url), "utf8");
 const shell = fs.readFileSync(new URL("../client/ux-shell.js", import.meta.url), "utf8");
 const acceptance = fs.readFileSync(new URL("../scripts/live-offline-reconciliation-check.js", import.meta.url), "utf8");
+const inventory = fs.readFileSync(new URL("../client/inventory.html", import.meta.url), "utf8");
 
 test("browser offline worker caches the application shell", () => {
     assert.match(worker, /addEventListener\("install"/);
@@ -13,6 +14,13 @@ test("browser offline worker caches the application shell", () => {
     assert.match(worker, /clients\.claim\(\)/);
     assert.match(worker, /request\.mode === "navigate"/);
     assert.match(worker, /caches\.match\(request\)/);
+    assert.match(worker, /\/inventory\.html/);
+    assert.match(worker, /universal-pos-shell-v2/);
+});
+
+test("browser navigation never falls back to Home for a missing cached page", () => {
+    assert.doesNotMatch(worker, /caches\.match\("\/index\.html"\)/);
+    assert.match(worker, /Offline page unavailable\./);
 });
 
 test("browser offline worker never caches API or authentication traffic", () => {
@@ -23,6 +31,11 @@ test("browser offline worker never caches API or authentication traffic", () => 
 test("UX shell registers the root-scoped browser service worker", () => {
     assert.match(shell, /serviceWorker\.register\("\/service-worker\.js", \{ scope: "\/" \}\)/);
     assert.match(shell, /registerBrowserOfflineSupport/);
+});
+
+test("inventory page owns its direct route and active navigation", () => {
+    assert.match(inventory, /<title>Universal Pharmacy Platform — Inventory<\/title>/);
+    assert.match(inventory, /<a class="active" href="\/inventory\.html">Inventory<\/a>/);
 });
 
 test("live acceptance requires tenant-scoped authenticated identities", () => {
